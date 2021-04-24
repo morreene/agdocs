@@ -24,16 +24,38 @@ import dash_auth
 from dash.dependencies import Input, Output, State
 
 import pandas as pd
+import numpy as np
 import plotly.graph_objs as go
 import datetime
 import urllib.parse
 import os
 
-# ===== Read Data =====
-master = pd.read_pickle('data/20200527-master.pickle')
-master = master[['No', 'Symbol', 'Type', 'Year', 'Date', 'Title','Proponents', 'Pillars', 'Topics', 'Available','Source', 'Use', 'FileKey']]
+import plotly.express as px
 
-files = master[~master['Proponents'].isin(['Secretariat','Chair'])].groupby(['FileKey','Year','Proponents','Pillars']).size().reset_index()
+from sklearn.cluster import KMeans
+from scipy.spatial.distance import euclidean
+from scipy.spatial.distance import cdist
+import warnings
+warnings.filterwarnings(action='ignore', category=UserWarning, module='gensim')
+
+from gensim import corpora, models, similarities
+from gensim.models import LsiModel, LogEntropyModel
+from gensim.models.phrases import Phraser, Phrases
+
+from gensim.corpora import Dictionary
+from gensim.models.tfidfmodel import TfidfModel
+from gensim.matutils import sparse2full
+
+
+
+
+# ===== Read Data =====
+# master = pd.read_pickle('data/20200527-master.pickle')
+master = pd.read_pickle('data/20210401-master.pickle')
+
+master = master[['No', 'Symbol', 'Type', 'Year', 'Date', 'Title','Proponents', 'Pillars', 'Topics', 'Available','Source', 'Use', 'FileID']]
+
+files = master[~master['Proponents'].isin(['Secretariat','Chair'])].groupby(['FileID','Year','Proponents','Pillars']).size().reset_index()
 
 # "Stack" multiple proponents and pillars to different rows
 files['ProponentsList'] = files['Proponents'].str.split(',')
@@ -62,6 +84,92 @@ dict_proponent = dict(zip(dict_proponent, dict_proponent))
 # Text data
 textdata = pd.read_pickle('data/20200527-doc-data-keyterms-0.3.pickle')
 textdata = textdata [['Doc', 'Text', 'Len', 'KTTextRankStr', 'KTScakeStr',]]
+
+
+
+
+
+
+# For Similarity
+fil = pd.read_pickle('data/20210401-master.pickle')
+# files = files[['No', 'Symbol', 'Type', 'Year', 'Date', 'Title','Proponents', 'Pillars', 'Topics', 'Available','Source', 'Use', 'FileKey']]
+fil = fil[['No', 'Symbol', 'Type', 'Year','Date',  'Proponents', 'Pillars', 'Topics', 'FileID']]
+fil['TopicsList'] = fil['Topics'].str.split(',')
+topics = fil.apply(lambda x: pd.Series(x['TopicsList']), axis=1).stack().reset_index(level=1, drop=True)
+
+topics = [x.strip() for x in topics]
+topics = list(set(topics))
+topics.sort()
+dict_topic = dict(zip(topics, topics))
+# data = pd.read_pickle('data/data_preprocessing_phrase_20210404.pickle')
+data = pd.read_pickle('data/data_preprocessing_phrase_20210404.pickle')
+data = data[data['text'].str.len()>100]
+
+data = data.groupby('FileID')['text'].apply(lambda x: ' '.join(x)).reset_index()
+
+data = pd.merge(data[['FileID','text']], fil, left_on='FileID',right_on='FileID')
+data['Words'] = data['text'].str.split(' ')
+# print(data.shape)
+# data.head()
+
+
+
+def calc_similarity(ids, docs, kRandom=3, nClusters=3, sortCluster=True):
+    # ids: list of IDs identifying texts
+    # docs: list of docs
+
+    dictionary = corpora.Dictionary(docs)
+    corpus = [dictionary.doc2bow(doc) for doc in docs]
+
+    # # TF-IDF
+    # tfidf = models.TfidfModel(corpus)
+    # index = similarities.MatrixSimilarity(tfidf[corpus])
+    # sims = index[tfidf[corpus]]
+    # df_sims = pd.DataFrame(sims, index=ids,columns=ids)
+
+    # Log ent
+    log_ent = LogEntropyModel(corpus)
+    index = similarities.MatrixSimilarity(log_ent[corpus])
+    sims = index[log_ent[corpus]]
+    df_sims = pd.DataFrame(sims, index=ids, columns=ids)
+
+    if sortCluster == True:
+        # Ordered by clusters and distances
+        X = df_sims.copy()
+        model= KMeans(n_clusters=nClusters, random_state=kRandom)
+
+    #     FutureWarning: Method .as_matrix will be removed in a future version. Use .values instead.
+    #     clusassign = model.fit_predict(X.as_matrix())
+    #     min_dist = np.min(cdist(X.as_matrix(), model.cluster_centers_, 'euclidean'), axis=1)
+
+        clusassign = model.fit_predict(X.values)
+        min_dist = np.min(cdist(X.values, model.cluster_centers_, 'euclidean'), axis=1)
+
+        Y = pd.DataFrame(min_dist, index=X.index, columns=['Center_euclidean_dist'])
+        Z = pd.DataFrame(clusassign, index=X.index, columns=['cluster_ID'])
+        A = pd.concat([Y,Z], axis=1)
+        A = A.sort_values(['cluster_ID', 'Center_euclidean_dist']).reset_index()
+
+        namelist= A['index'].tolist()
+        df_sim_sorted = pd.DataFrame(namelist,columns=['NameSort'])
+        df_sim_sorted = pd.merge(df_sim_sorted, df_sims, left_on='NameSort', right_index=True).set_index('NameSort')
+        df_sim_sorted = df_sim_sorted[namelist]
+
+        return df_sim_sorted
+    else:
+        return df_sims
+
+
+
+
+
+
+
+
+
+
+
+
 
 # ===== App =====
 # Username and password for login
@@ -124,7 +232,7 @@ app.config.suppress_callback_exceptions = True
 sidebar_header = dbc.Row(
     [
         # dbc.Col(html.H3("Ag Texts", className="display-4000")),
-        dbc.Col(html.Img(src=app.get_asset_url("logo.png"), width="180px", style={'margin-left':'15px'})),
+        dbc.Col(html.Img(src=app.get_asset_url("logo.png"), width="130px", style={'margin-left':'15px'})),
         dbc.Col(
             html.Button(
                 # use the Bootstrap navbar-toggler classes to style the toggle
@@ -166,12 +274,11 @@ sidebar = html.Div(
         dbc.Collapse(
             dbc.Nav(
                 [
-                    dbc.NavLink("Stat", href="/page-1", id="page-1-link"),
+                    dbc.NavLink("Stats", href="/page-1", id="page-1-link"),
                     dbc.NavLink("Similarity", href="/page-2", id="page-2-link"),
                     dbc.NavLink("Texts & Keyterms", href="/page-3", id="page-3-link"),
                     dbc.NavLink("About", href="/page-4", id="page-4-link"),
                     # dbc.NavLink("Network", href="/page-5", id="page-5-link"),
-
                 ],
                 vertical=True,
                 pills=False,
@@ -315,7 +422,69 @@ def render_page_content(pathname):
                     ])
 
     elif pathname in ["/page-2"]:
-        return html.H5("Content to be added page 2.")
+        # return html.H5("Content to be added page 2.")
+        return html.Div([
+                        dbc.Row([
+                            # dbc.Col(lg=1),
+                            dbc.Col([
+                                html.H3('Similarity within topics', style={'font-weight': 'bold'}),
+                                # html.H5('Updata on 14 June 2020'),
+                                html.P(
+                                    id="description",
+                                    children=dcc.Markdown(
+                                      children=(
+                                        '''
+                                        Similarity between two docs in a topic.
+                                        ''')
+                                    )
+                                ),
+                                html.Br(),
+                                # html.H6('Number of Proposals by year', style={'font-weight': 'bold'}),
+                                # dcc.Dropdown(
+                                #     id='my-dropdown',
+                                #     options=[{'label': v, 'value': k}
+                                #                 for k, v in dict_pillar.items()],
+                                #     multi=False,
+                                #     value= [0,1,2,3,4,5,6,7,8,9],
+                                # ),
+                            ], lg=10),
+                        ]),
+                        dbc.Row([
+                            dbc.Col([
+                                html.Label('Select Topic:'),
+                                dcc.Dropdown(
+                                    id='plot-year-dropdown-pillar1',
+                                    options=[{'label': v, 'value': k}
+                                                for k, v in dict_topic.items()],
+                                    multi=False,
+                                    value= 'COT',
+                                ),
+                            ], lg=4),
+                            # dbc.Col([
+                            #     html.Label('Select Proponent:'),
+                            #     dcc.Dropdown(
+                            #         id='plot-year-dropdown-proponent1',
+                            #         options=[{'label': v, 'value': k}
+                            #                     for k, v in dict_proponent.items()],
+                            #         multi=False,
+                            #         value= 'All',
+                            #     ),
+                            # ], lg=4)
+                        ]),
+                        dbc.Row([
+                            # dbc.Col(lg=1),
+                            # dbc.Col([
+                            #     dcc.Graph(
+                            #         id='top_topics'
+                            #     ),
+                            # ], lg=3),
+                            dbc.Col([
+                                dcc.Graph(
+                                    id='plot_year1'
+                                ),
+                            ], lg=10),
+                        ]),
+                    ])
 
     elif pathname == "/page-3":
         return html.Div([
@@ -427,7 +596,7 @@ def update_graph(select_pillar, select_proponent):
         select_proponent = [select_proponent]
 
     df_plot = files[(files['Pillar'].isin(select_pillar)) &
-                    (files['Proponent'].isin(select_proponent))].groupby('Year')['FileKey'].nunique().reset_index(name='Count')
+                    (files['Proponent'].isin(select_proponent))].groupby('Year')['FileID'].nunique().reset_index(name='Count')
 
     figure = {
         'data': [go.Bar(
@@ -447,6 +616,71 @@ def update_graph(select_pillar, select_proponent):
         )
     }
     return figure
+
+
+
+
+# Similarity
+@app.callback(Output('plot_year1', 'figure'),
+             [Input('plot-year-dropdown-pillar1', 'value'),
+              # Input('plot-year-dropdown-proponent1', 'value'),
+             ])
+def update_graph(select_pillar1):
+    if not select_pillar1:
+        raise PreventUpdate
+    # if not select_proponent1:
+    #     raise PreventUpdate
+
+    # # select_pillar = 'DS'
+    # # select_pillar = 'All'
+    # if select_pillar == 'All':
+    #     select_pillar = list(files['Pillar'].unique())
+    # else:
+    #     select_pillar = [select_pillar]
+    #
+    # # select_proponent = 'Australia'
+    # # select_proponent = 'All'
+    #
+    # if select_proponent == 'All':
+    #     select_proponent = list(files['Proponent'].unique())
+    # else:
+    #     select_proponent = [select_proponent]
+
+    # topic = 'TRQ'
+    topic = select_pillar1
+
+    selected = data[data['Topics'].str.contains(topic)].sort_values('Year')
+    selected_symbols = selected['Symbol'].tolist()
+    selected_docs = selected['Words'].tolist()
+    sim_sorted = calc_similarity(selected_symbols, selected_docs, kRandom=3, nClusters=3, sortCluster=False)
+
+    figure = px.imshow(sim_sorted)
+    figure.update_layout(
+        height=800,
+        width=800,
+        font=dict(
+            family="Courier New, monospace",
+            size=8,
+            color="RebeccaPurple"
+                )
+        )
+    return figure
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # General modules
 @app.callback(
