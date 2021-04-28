@@ -45,6 +45,8 @@ from gensim.models.phrases import Phraser, Phrases
 from gensim.models.tfidfmodel import TfidfModel
 # from gensim.matutils import sparse2full
 
+from wordcloud import WordCloud, STOPWORDS, ImageColorGenerator
+import matplotlib.pyplot as plt
 
 # ===== Read Data =====
 # master = pd.read_pickle('data/20200527-master.pickle')
@@ -118,7 +120,7 @@ data['Words'] = data['text'].str.split(' ')
 # data.head()
 
 
-
+# function to calculate similarity
 def calc_similarity(ids, docs, kRandom=3, nClusters=3, sortCluster=True):
     # ids: list of IDs identifying texts
     # docs: list of docs
@@ -163,13 +165,6 @@ def calc_similarity(ids, docs, kRandom=3, nClusters=3, sortCluster=True):
         return df_sim_sorted
     else:
         return df_sims
-
-
-
-
-
-
-
 
 
 
@@ -271,8 +266,8 @@ sidebar = html.Div(
                     dbc.NavLink("Stats", href="/page-1", id="page-1-link"),
                     dbc.NavLink("Similarity", href="/page-2", id="page-2-link"),
                     dbc.NavLink("Text Data", href="/page-3", id="page-3-link"),
+                    dbc.NavLink("WordCloud", href="/page-5", id="page-5-link"),
                     dbc.NavLink("About", href="/page-4", id="page-4-link"),
-                    # dbc.NavLink("Network", href="/page-5", id="page-5-link"),
                 ],
                 vertical=True,
                 pills=False,
@@ -300,20 +295,21 @@ app.layout = html.Div([dcc.Location(id="url"), sidebar, content])
 # this callback uses the current pathname to set the active state of the
 # corresponding nav link to true, allowing users to tell see page they are on
 @app.callback(
-    [Output(f"page-{i}-link", "active") for i in range(1, 5)],
+    [Output(f"page-{i}-link", "active") for i in range(1, 6)],
     [Input("url", "pathname")],
 )
 
 def toggle_active_links(pathname):
     if pathname == "/":
         # Treat page 1 as the homepage / index
-        return True, False, False, False
-    return [pathname == f"/page-{i}" for i in range(1, 5)]
+        return True, False, False, False, False
+    return [pathname == f"/page-{i}" for i in range(1, 6)]
 
 @app.callback(Output("page-content", "children"), [Input("url", "pathname")])
 def render_page_content(pathname):
     if pathname in ["/", "/page-1"]:
         return html.Div([
+                        # Chart 1
                         dbc.Row([
                             dbc.Col([
                                 html.H3('Summary Stats', style={'font-weight': 'bold'}),
@@ -360,31 +356,7 @@ def render_page_content(pathname):
                             ], lg=10),
                         ]),
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+                        # Chart 2
                         dbc.Row([
                             dbc.Col([
                                 html.Label('Select topic:'),
@@ -417,31 +389,9 @@ def render_page_content(pathname):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
                     ])
 
     elif pathname in ["/page-2"]:
-        # return html.H5("Content to be added page 2.")
         return html.Div([
                         dbc.Row([
                             # dbc.Col(lg=1),
@@ -582,6 +532,56 @@ def render_page_content(pathname):
                             ], lg=8),
                         ]),
                         ]),
+    elif pathname in ["/page-5"]:
+        # return html.H5("Content to be added page 2.")
+        return html.Div([
+                        dbc.Row([
+                            # dbc.Col(lg=1),
+                            dbc.Col([
+                                html.H3('WordCloud by topic', style={'font-weight': 'bold'}),
+                                # html.H5('Updata on 14 June 2020'),
+                                html.P(
+                                    id="description",
+                                    children=dcc.Markdown(
+                                      children=(
+                                        '''
+                                        Word frequency in a topic.
+                                        ''')
+                                    )
+                                ),
+                                html.Br(),
+                            ], lg=10),
+                        ]),
+                        dbc.Row([
+                            dbc.Col([
+                                html.Label('Select Topic:'),
+                                dcc.Dropdown(
+                                    id='plot-year-dropdown-pillar2',
+                                    options=[{'label': v, 'value': k}
+                                                for k, v in dict_topic.items()],
+                                    multi=False,
+                                    value= 'COT',
+                                ),
+                            ], lg=4),
+                            # dbc.Col([
+                            #     html.Label('Select Proponent:'),
+                            #     dcc.Dropdown(
+                            #         id='plot-year-dropdown-proponent1',
+                            #         options=[{'label': v, 'value': k}
+                            #                     for k, v in dict_proponent.items()],
+                            #         multi=False,
+                            #         value= 'All',
+                            #     ),
+                            # ], lg=4)
+                        ]),
+                        dbc.Row([
+                            dbc.Col([
+                                dcc.Graph(
+                                    id='plot_year2'
+                                ),
+                            ], lg=10),
+                        ]),
+                    ])
 
     # If the user tries to reach a different page, return a 404 message
     return dbc.Jumbotron(
@@ -750,20 +750,55 @@ def update_graph(select_pillar1):
     selected_docs = selected['Words'].tolist()
     sim_sorted = calc_similarity(selected_symbols, selected_docs, kRandom=3, nClusters=3, sortCluster=False)
 
-    figure = px.imshow(sim_sorted)
-    figure.update_layout(
+    fig = px.imshow(sim_sorted)
+    fig.update_layout(
         height=800,
         width=800,
         font=dict(
             family="Courier New, monospace",
             size=8,
             color="RebeccaPurple"
-                )
+                ),
+        xaxis=dict(autorange='reversed')
         )
-    return figure
+    return fig
 
 
 
+
+
+
+# wordcloud
+@app.callback(Output('plot_year2', 'figure'),
+             [Input('plot-year-dropdown-pillar2', 'value'),
+              # Input('plot-year-dropdown-proponent1', 'value'),
+             ])
+def update_graph(select_pillar2):
+    if not select_pillar2:
+        raise PreventUpdate
+
+    topic = select_pillar2
+    text = " ".join(review for review in data[data["Topics"].str.contains(topic)]['text'])
+    # Generate a word cloud image
+    wordcloud = WordCloud(background_color="white", width=900, height=600).generate(text)
+
+    # Display the generated image:
+    # the matplotlib way:
+    # plt.figure(figsize=[18,9])
+    # plt=px.imshow(wordcloud, interpolation='bilinear')
+    fig=px.imshow(wordcloud)
+    fig.update_layout(
+        width=800,
+        height=650,
+        yaxis_visible=False,
+        xaxis_visible=False,
+        font=dict(
+            family="Courier New, monospace",
+            size=8,
+            color="RebeccaPurple"
+                ),
+        )
+    return fig
 
 
 
