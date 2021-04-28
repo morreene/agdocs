@@ -790,6 +790,7 @@ def update_graph(select_pillar2):
     fig.update_layout(
         width=800,
         height=650,
+        
         yaxis_visible=False,
         xaxis_visible=False,
         font=dict(
