@@ -112,10 +112,15 @@ textdata = textdata [['Doc', 'Text', 'Len', 'KTTextRankStr', 'KTScakeStr',]]
 data = pd.read_pickle('data/data_preprocessing_phrase_20210404.pickle')
 data = data[data['text'].str.len()>100]
 
-data = data.groupby('FileID')['text'].apply(lambda x: ' '.join(x)).reset_index()
+data1 = data.groupby('FileID')['text'].apply(lambda x: ' '.join(x)).reset_index()
 
-data = pd.merge(data[['FileID','text']], master, left_on='FileID',right_on='FileID')
+data2 = data.groupby('FileID')['Text'].apply(lambda x: ' '.join(x)).reset_index()
+
+data = pd.merge(data1,data2,on='FileID')
+
+data = pd.merge(data[['FileID','Text','text']], master, left_on='FileID',right_on='FileID')
 data['Words'] = data['text'].str.split(' ')
+# print(data.head())
 # print(data.shape)
 # data.head()
 
@@ -463,8 +468,8 @@ def render_page_content(pathname):
                     # columns=[{"name": i, "id": i} for i in textdata.columns],
                     # data=textdata.to_dict('records'),
 
-                    columns=[{"name": i, "id": i} for i in data[['FileID','text']].columns],
-                    data=data[['FileID','text']].to_dict('records'),
+                    columns=[{"name": i, "id": i} for i in data[['FileID','Text','text']].columns],
+                    data=data[['FileID','Text','text']].to_dict('records'),
 
                     editable=False,
                     filter_action="native",
@@ -790,7 +795,7 @@ def update_graph(select_pillar2):
     fig.update_layout(
         width=800,
         height=650,
-        
+
         yaxis_visible=False,
         xaxis_visible=False,
         font=dict(
