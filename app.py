@@ -49,22 +49,21 @@ from wordcloud import WordCloud, STOPWORDS, ImageColorGenerator
 import matplotlib.pyplot as plt
 
 # ===== Read Data =====
-# master = pd.read_pickle('data/20200527-master.pickle')
 master = pd.read_pickle('data/20210401-master.pickle')
 master = master[['No', 'Symbol', 'Type', 'Year', 'Date', 'Title','Proponents', 'Pillars', 'Topics', 'Available','Source', 'Use', 'FileID']]
 
-files = master[~master['Proponents'].isin(['Secretariat','Chair'])].groupby(['FileID','Year','Proponents','Pillars','Topics']).size().reset_index()
+files = master[~master['Proponents'].isin(['Secretariat','Chair'])][['FileID','Year','Proponents','Pillars','Topics']]
 
 # "Stack" multiple proponents and pillars to different rows
 files['ProponentsList'] = files['Proponents'].str.split(',')
 files['PillarsList'] = files['Pillars'].str.split(',')
-files['TopicList'] = files['Topics'].str.split(',')
+files['TopicsList'] = files['Topics'].str.split(',')
 
 proponent = files.apply(lambda x: pd.Series(x['ProponentsList']), axis=1).stack().reset_index(level=1, drop=True)
 proponent.name = 'Proponent'
 pillar = files.apply(lambda x: pd.Series(x['PillarsList']), axis=1).stack().reset_index(level=1, drop=True)
 pillar.name = 'Pillar'
-topic = files.apply(lambda x: pd.Series(x['TopicList']), axis=1).stack().reset_index(level=1, drop=True)
+topic = files.apply(lambda x: pd.Series(x['TopicsList']), axis=1).stack().reset_index(level=1, drop=True)
 topic.name = 'Topic'
 
 files = files.join(pillar)
@@ -86,44 +85,21 @@ dict_proponent = dict(zip(dict_proponent, dict_proponent))
 
 dict_topic = list(files['Topic'].unique())
 dict_topic.sort()
+dict_topic = ['All'] + dict_topic
 dict_topic = dict(zip(dict_topic, dict_topic))
 
 
 # Text data
-textdata = pd.read_pickle('data/20200527-doc-data-keyterms-0.3.pickle')
-textdata = textdata [['Doc', 'Text', 'Len', 'KTTextRankStr', 'KTScakeStr',]]
-
-
-# For Similarity
-# fil = pd.read_pickle('data/20210401-master.pickle')
-# # files = files[['No', 'Symbol', 'Type', 'Year', 'Date', 'Title','Proponents', 'Pillars', 'Topics', 'Available','Source', 'Use', 'FileKey']]
-# fil = fil[['No', 'Symbol', 'Type', 'Year','Date',  'Proponents', 'Pillars', 'Topics', 'FileID']]
-# fil['TopicsList'] = fil['Topics'].str.split(',')
-# topics = fil.apply(lambda x: pd.Series(x['TopicsList']), axis=1).stack().reset_index(level=1, drop=True)
-#
-# topics = [x.strip() for x in topics]
-# topics = list(set(topics))
-# topics.sort()
-# dict_topic = dict(zip(topics, topics))
-
-
-
-# data = pd.read_pickle('data/data_preprocessing_phrase_20210404.pickle')
-data = pd.read_pickle('data/data_preprocessing_phrase_20210404.pickle')
+data = pd.read_pickle('data/data_preprocessing_phrase_20210501.pickle')
 data = data[data['text'].str.len()>100]
 
+# Consolidate paras to doc
 data1 = data.groupby('FileID')['text'].apply(lambda x: ' '.join(x)).reset_index()
-
 data2 = data.groupby('FileID')['Text'].apply(lambda x: ' '.join(x)).reset_index()
-
 data = pd.merge(data1,data2,on='FileID')
 
 data = pd.merge(data[['FileID','Text','text']], master, left_on='FileID',right_on='FileID')
 data['Words'] = data['text'].str.split(' ')
-# print(data.head())
-# print(data.shape)
-# data.head()
-
 
 # function to calculate similarity
 def calc_similarity(ids, docs, kRandom=3, nClusters=3, sortCluster=True):
@@ -645,18 +621,6 @@ def update_graph(select_pillar, select_proponent):
     }
     return figure
 
-
-
-
-
-
-
-
-
-
-
-
-
 @app.callback(Output('stat-plot-year-topic-proponent', 'figure'),
              [Input('stat-year-dropdown-topic', 'value'),
               Input('stat-year-dropdown-proponent2', 'value'),
@@ -705,48 +669,13 @@ def update_graph(select_topic, select_proponent):
     return figure
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # Similarity
 @app.callback(Output('plot_year1', 'figure'),
              [Input('plot-year-dropdown-pillar1', 'value'),
-              # Input('plot-year-dropdown-proponent1', 'value'),
              ])
 def update_graph(select_pillar1):
     if not select_pillar1:
         raise PreventUpdate
-    # if not select_proponent1:
-    #     raise PreventUpdate
-
-    # # select_pillar = 'DS'
-    # # select_pillar = 'All'
-    # if select_pillar == 'All':
-    #     select_pillar = list(files['Pillar'].unique())
-    # else:
-    #     select_pillar = [select_pillar]
-    #
-    # # select_proponent = 'Australia'
-    # # select_proponent = 'All'
-    #
-    # if select_proponent == 'All':
-    #     select_proponent = list(files['Proponent'].unique())
-    # else:
-    #     select_proponent = [select_proponent]
-
     # topic = 'TRQ'
     topic = select_pillar1
 
@@ -768,15 +697,9 @@ def update_graph(select_pillar1):
         )
     return fig
 
-
-
-
-
-
 # wordcloud
 @app.callback(Output('plot_year2', 'figure'),
              [Input('plot-year-dropdown-pillar2', 'value'),
-              # Input('plot-year-dropdown-proponent1', 'value'),
              ])
 def update_graph(select_pillar2):
     if not select_pillar2:
@@ -788,22 +711,18 @@ def update_graph(select_pillar2):
     wordcloud = WordCloud(background_color="white", width=900, height=600).generate(text)
 
     # Display the generated image:
-    # the matplotlib way:
-    # plt.figure(figsize=[18,9])
-    # plt=px.imshow(wordcloud, interpolation='bilinear')
     fig=px.imshow(wordcloud)
     fig.update_layout(
-        width=800,
-        height=650,
-
-        yaxis_visible=False,
-        xaxis_visible=False,
-        font=dict(
-            family="Courier New, monospace",
-            size=8,
-            color="RebeccaPurple"
-                ),
-        )
+                    width=800,
+                    height=650,
+                    xaxis_visible=False,
+                    yaxis_visible=False,
+                    font=dict(
+                              family="Courier New, monospace",
+                              size=8,
+                              color="RebeccaPurple"
+                             ),
+                    )
     return fig
 
 
