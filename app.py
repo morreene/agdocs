@@ -101,6 +101,10 @@ data = pd.merge(data1,data2,on='FileID')
 data = pd.merge(data[['FileID','Text','text']], master, left_on='FileID',right_on='FileID')
 data['Words'] = data['text'].str.split(' ')
 
+# for terms frequency
+df_cv = pd.read_pickle('data/word-freq-20210501.pickle', compression='zip')
+all_terms = list(df_cv.columns)
+
 # function to calculate similarity
 def calc_similarity(ids, docs, kRandom=3, nClusters=3, sortCluster=True):
     # ids: list of IDs identifying texts
@@ -250,7 +254,7 @@ sidebar = html.Div(
                     dbc.NavLink("Similarity", href="/page-4", id="page-4-link"),
                     dbc.NavLink("WordCloud", href="/page-5", id="page-5-link"),
                     dbc.NavLink("Networks", href="/page-6", id="page-6-link"),
-
+                    dbc.NavLink("Term Freq", href="/page-7", id="page-7-link"),
                 ],
                 vertical=True,
                 pills=False,
@@ -278,15 +282,15 @@ app.layout = html.Div([dcc.Location(id="url"), sidebar, content])
 # this callback uses the current pathname to set the active state of the
 # corresponding nav link to true, allowing users to tell see page they are on
 @app.callback(
-    [Output(f"page-{i}-link", "active") for i in range(1, 7)],
+    [Output(f"page-{i}-link", "active") for i in range(1, 8)],
     [Input("url", "pathname")],
 )
 
 def toggle_active_links(pathname):
     if pathname == "/":
         # Treat page 1 as the homepage / index
-        return True, False, False, False, False, False
-    return [pathname == f"/page-{i}" for i in range(1, 7)]
+        return True, False, False, False, False, False, False
+    return [pathname == f"/page-{i}" for i in range(1, 8)]
 
 
 
@@ -324,7 +328,8 @@ def render_page_content(pathname):
         ])
     elif pathname == "/page-2":
         return html.Div([
-                html.H5('Text Data - Preprocessed: stopwords removed; words in original form; without numbers; predefined phrase linked by "_"'),
+                html.H3('Text Data', style={'font-weight': 'bold'}),
+                html.P('Preprocessed: stopwords removed; words in original form; without numbers; predefined phrase linked by "_"'),
                 dash_table.DataTable(
                     id='table',
                     # columns=[{"name": i, "id": i} for i in textdata.columns],
@@ -512,17 +517,6 @@ def render_page_content(pathname):
                     ])
 
 
-    # elif pathname == "/page-4":
-    #     # return html.Embed('network_proponent.html'),
-    #     # return html.Div([ html.Iframe(src.get_asset_url("network_proponent.html"))])
-    #
-    #     return html.Div([
-    #            html.H1('Title'),
-    #        html.Embed(src = "assets/network_proponent.html", width=850, height=850)
-    #        # style={'width':'1000', 'height': '600'})
-    #     ])
-
-        # return html.Div([html.Iframe("network_proponent.html")])
     elif pathname in ["/page-5"]:
         # return html.H5("Content to be added page 2.")
         return html.Div([
@@ -554,16 +548,6 @@ def render_page_content(pathname):
                                     value= 'COT',
                                 ),
                             ], lg=4),
-                            # dbc.Col([
-                            #     html.Label('Select Proponent:'),
-                            #     dcc.Dropdown(
-                            #         id='plot-year-dropdown-proponent1',
-                            #         options=[{'label': v, 'value': k}
-                            #                     for k, v in dict_proponent.items()],
-                            #         multi=False,
-                            #         value= 'All',
-                            #     ),
-                            # ], lg=4)
                         ]),
                         dbc.Row([
                             dbc.Col([
@@ -578,9 +562,46 @@ def render_page_content(pathname):
     elif pathname in ["/page-6"]:
         return html.Div([
                         # html.H1('Title'),
+                        html.H3('Networks: proposal proponents & document cross reference', style={'font-weight': 'bold'}),
                         html.Embed(src = "assets/network_proponent.html", width=850, height=850),
                         html.Embed(src = "assets/network_crossreference.html", width=850, height=850)
                         ])
+
+
+    elif pathname in ["/page-7"]:
+        return html.Div([
+                        dbc.Row([
+                            dbc.Col([
+                                    html.H3('Term Frequency', style={'font-weight': 'bold'}),
+                                    html.P(
+                                        id="description",
+                                        children=dcc.Markdown(
+                                          children=(
+                                            '''
+                                            Term frequency across time
+                                            ''')
+                                        )
+                                    ),
+
+                            ]),
+
+                            ]),
+                        dbc.Row([
+                                dbc.Col([
+                                        dbc.Input(id='term-freq-input', value='tariff ams', type='text'),
+                                        dbc.Button(id='term-freq-button', type='submit', children='Submit', className="mr-2"),
+                                        html.P(id='term-freq-invalid'),
+                                        ], lg=6),
+                                ]),
+                        dbc.Row([
+                                dbc.Col([
+                                        dcc.Graph(
+                                            id='term-freq-plot'
+                                            ),
+                                        ], lg=10),
+                                ])
+                        ])
+
 
     # If the user tries to reach a different page, return a 404 message
     return dbc.Jumbotron(
@@ -737,6 +758,32 @@ def update_graph(select_pillar2):
 
 
 
+# Term frequency
+@app.callback(
+        [dash.dependencies.Output('term-freq-plot', 'figure'),
+         dash.dependencies.Output('term-freq-invalid', 'children')
+         ],
+        [dash.dependencies.Input('term-freq-button', 'n_clicks')],
+        [dash.dependencies.State('term-freq-input', 'value')]
+    )
+
+def update_output(clicks, terms):
+    terms = terms.strip().split(' ')
+    invalid = set(terms) - set(all_terms)
+    terms = list(set(terms) - invalid)
+
+    # terms = ['competition','ams','food']
+    freq = df_cv.loc[:,terms].div(df_cv["SUM"], axis=0)
+    freq = freq.join(df_cv['Date'])
+    freq= freq.groupby('Date')[terms].mean()
+
+    fig = px.line(freq.ewm(span = 50).mean())
+
+    if len(invalid) >0:
+        invalid = 'Invalid term(s): ' + ' '.join(list(invalid))
+    else:
+        invalid = ' '
+    return fig, invalid
 
 
 
