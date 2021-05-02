@@ -266,7 +266,7 @@ sidebar = html.Div(
         html.Div([
                     html.Hr(),
                     html.P(
-                        "V.20210425",
+                        "Version 20210502",
                         # className="lead",
                     ),
                 ],
