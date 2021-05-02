@@ -300,19 +300,24 @@ def render_page_content(pathname):
                 dbc.Jumbotron([
                             html.H4("About the Data and the App", className="display-about"),
                             html.P(
-                                "Tracking what happening in trade with NLP algorithms",
+                                "Getting insights from the docs",
                                 className="lead",
                             ),
                             html.Hr(className="my-2"),
                             dcc.Markdown(
                                 '''
-                                The news tracker analyzes over two thousand news pieces, which were curated by professional editors, with natural language processing (NLP) and machine learning algorithms and tools:
+                                Pellentesque posuere pellentesque imperde laoreet’s Velit leading pulvinar velit a hendrerit Donec non pellentesque jus businesses tincidunt. Suspendisse at maximus turpis, non loborsrt.
 
-                                * **Topic model:** topics identified by unsupervised machine learning models ([Latent Dirichlet allocation](https://en.wikipedia.org/wiki/Latent_Dirichlet_allocation) and [Non\-negative matrix factorization](https://en.wikipedia.org/wiki/Non-negative_matrix_factorization)).
-                                   The number of news reports under those topics could be tracked over time;
-                                * **Sentiment analysis:** how sentiment changes over time;
-                                * **Name network:** names are linked because they are mentioned together in one news report;
-                                * **Key terms: ** automatically extract key phrases to [summarize](https://en.wikipedia.org/wiki/Automatic_summarization) news reports.
+                                    Dolor sit amet consectetur elit sed do eiusmod tempor incididunt labore et dolore
+                                    magna aliqua enim ad minim veniam quis nostrud exercitation ulac laboris aliquip
+                                    ex ea commodo consequat duis aute irure.dolor in repre henderit in voluptate velit
+                                    esse cillum dolore eu fugiat nulla pariatur excep teur sint cupidatat non proident.
+
+                                Pellentesque posuere pellentesque imperde laoreet’s Velit leading pulvinar velit a hendrerit Donec non pellentesque jus businesses tincidunt. Suspendisse at maximus turpis, non loborsrt.
+
+                                * consectetur elit sed do eius
+                                * consectetur elit sed
+                                * consectetur elit sed do
                                 '''
                                 ),
                         ])
@@ -572,7 +577,7 @@ def render_page_content(pathname):
 
     elif pathname in ["/page-6"]:
         return html.Div([
-                        html.H1('Title'),
+                        # html.H1('Title'),
                         html.Embed(src = "assets/network_proponent.html", width=850, height=850),
                         html.Embed(src = "assets/network_crossreference.html", width=850, height=850)
                         ])
@@ -586,7 +591,8 @@ def render_page_content(pathname):
         ]
     )
 
-
+# Callbacks for interactive pages
+# Stats 1 - Pillar
 @app.callback(Output('stat-plot-year-pillar-proponent', 'figure'),
              [Input('stat-year-dropdown-pillar', 'value'),
               Input('stat-year-dropdown-proponent', 'value'),
@@ -597,15 +603,10 @@ def update_graph(select_pillar, select_proponent):
     if not select_proponent:
         raise PreventUpdate
 
-    # select_pillar = 'DS'
-    # select_pillar = 'All'
     if select_pillar == 'All':
         select_pillar = list(files['Pillar'].unique())
     else:
         select_pillar = [select_pillar]
-
-    # select_proponent = 'Australia'
-    # select_proponent = 'All'
 
     if select_proponent == 'All':
         select_proponent = list(files['Proponent'].unique())
@@ -634,6 +635,7 @@ def update_graph(select_pillar, select_proponent):
     }
     return figure
 
+# Stats 2 - Topic
 @app.callback(Output('stat-plot-year-topic-proponent', 'figure'),
              [Input('stat-year-dropdown-topic', 'value'),
               Input('stat-year-dropdown-proponent2', 'value'),
@@ -644,15 +646,10 @@ def update_graph(select_topic, select_proponent):
     if not select_proponent:
         raise PreventUpdate
 
-    # select_topic = 'DS'
-    # select_topic = 'All'
     if select_topic == 'All':
         select_topic = list(files['Topic'].unique())
     else:
         select_topic = [select_topic]
-
-    # select_proponent = 'Australia'
-    # select_proponent = 'All'
 
     if select_proponent == 'All':
         select_proponent = list(files['Proponent'].unique())
@@ -697,8 +694,8 @@ def update_graph(select_pillar1):
     selected_docs = selected['Words'].tolist()
     sim_sorted = calc_similarity(selected_symbols, selected_docs, kRandom=3, nClusters=3, sortCluster=False)
 
-    fig = px.imshow(sim_sorted)
-    fig.update_layout(
+    figure = px.imshow(sim_sorted)
+    figure.update_layout(
         height=800,
         width=800,
         font=dict(
@@ -708,9 +705,9 @@ def update_graph(select_pillar1):
                 ),
         xaxis=dict(autorange='reversed')
         )
-    return fig
+    return figure
 
-# wordcloud
+# WordCloud
 @app.callback(Output('plot_year2', 'figure'),
              [Input('plot-year-dropdown-pillar2', 'value'),
              ])
@@ -724,8 +721,8 @@ def update_graph(select_pillar2):
     wordcloud = WordCloud(background_color="white", width=900, height=600).generate(text)
 
     # Display the generated image:
-    fig=px.imshow(wordcloud)
-    fig.update_layout(
+    figure=px.imshow(wordcloud)
+    figure.update_layout(
                     width=800,
                     height=650,
                     xaxis_visible=False,
@@ -736,7 +733,11 @@ def update_graph(select_pillar2):
                               color="RebeccaPurple"
                              ),
                     )
-    return fig
+    return figure
+
+
+
+
 
 
 
