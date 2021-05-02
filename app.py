@@ -244,11 +244,13 @@ sidebar = html.Div(
         dbc.Collapse(
             dbc.Nav(
                 [
-                    dbc.NavLink("Stats", href="/page-1", id="page-1-link"),
-                    dbc.NavLink("Similarity", href="/page-2", id="page-2-link"),
-                    dbc.NavLink("Text Data", href="/page-3", id="page-3-link"),
+                    dbc.NavLink("About", href="/page-1", id="page-1-link"),
+                    dbc.NavLink("Data", href="/page-2", id="page-2-link"),
+                    dbc.NavLink("Stats", href="/page-3", id="page-3-link"),
+                    dbc.NavLink("Similarity", href="/page-4", id="page-4-link"),
                     dbc.NavLink("WordCloud", href="/page-5", id="page-5-link"),
-                    dbc.NavLink("About", href="/page-4", id="page-4-link"),
+                    dbc.NavLink("Networks", href="/page-6", id="page-6-link"),
+
                 ],
                 vertical=True,
                 pills=False,
@@ -276,19 +278,88 @@ app.layout = html.Div([dcc.Location(id="url"), sidebar, content])
 # this callback uses the current pathname to set the active state of the
 # corresponding nav link to true, allowing users to tell see page they are on
 @app.callback(
-    [Output(f"page-{i}-link", "active") for i in range(1, 6)],
+    [Output(f"page-{i}-link", "active") for i in range(1, 7)],
     [Input("url", "pathname")],
 )
 
 def toggle_active_links(pathname):
     if pathname == "/":
         # Treat page 1 as the homepage / index
-        return True, False, False, False, False
-    return [pathname == f"/page-{i}" for i in range(1, 6)]
+        return True, False, False, False, False, False
+    return [pathname == f"/page-{i}" for i in range(1, 7)]
+
+
+
+
+
 
 @app.callback(Output("page-content", "children"), [Input("url", "pathname")])
 def render_page_content(pathname):
     if pathname in ["/", "/page-1"]:
+        return html.Div([
+                dbc.Jumbotron([
+                            html.H4("About the Data and the App", className="display-about"),
+                            html.P(
+                                "Tracking what happening in trade with NLP algorithms",
+                                className="lead",
+                            ),
+                            html.Hr(className="my-2"),
+                            dcc.Markdown(
+                                '''
+                                The news tracker analyzes over two thousand news pieces, which were curated by professional editors, with natural language processing (NLP) and machine learning algorithms and tools:
+
+                                * **Topic model:** topics identified by unsupervised machine learning models ([Latent Dirichlet allocation](https://en.wikipedia.org/wiki/Latent_Dirichlet_allocation) and [Non\-negative matrix factorization](https://en.wikipedia.org/wiki/Non-negative_matrix_factorization)).
+                                   The number of news reports under those topics could be tracked over time;
+                                * **Sentiment analysis:** how sentiment changes over time;
+                                * **Name network:** names are linked because they are mentioned together in one news report;
+                                * **Key terms: ** automatically extract key phrases to [summarize](https://en.wikipedia.org/wiki/Automatic_summarization) news reports.
+                                '''
+                                ),
+                        ])
+        ])
+    elif pathname == "/page-2":
+        return html.Div([
+                html.H5('Text Data - Preprocessed: stopwords removed; words in original form; without numbers; predefined phrase linked by "_"'),
+                dash_table.DataTable(
+                    id='table',
+                    # columns=[{"name": i, "id": i} for i in textdata.columns],
+                    # data=textdata.to_dict('records'),
+
+                    columns=[{"name": i, "id": i} for i in data[['FileID','Text','text']].columns],
+                    data=data[['FileID','Text','text']].to_dict('records'),
+
+                    editable=False,
+                    filter_action="native",
+                    sort_action="native",
+                    sort_mode="multi",
+                    column_selectable=False,
+                    row_selectable=False,
+                    row_deletable=False,
+                    selected_columns=[],
+                    selected_rows=[],
+                    page_action="native",
+                    page_current= 0,
+                    page_size= 20,
+                    # style_cell_conditional=[
+                    #     {'if': {'column_id': 'Member'},
+                    #      'width': '100px'},
+                    # ]
+                    style_data={
+                        'whiteSpace': 'normal',
+                        'height': 'auto'
+                    },
+                    style_cell={
+                        # 'height': 'auto',
+                        'minWidth': '20px', 'maxWidth': '300px',
+                        # 'whiteSpace': 'normal',
+                        'textAlign': 'left',
+                        'verticalAlign': 'top',
+                        'fontSize':12,
+                    },
+                )
+            ])
+
+    elif pathname in ["/page-3"]:
         return html.Div([
                         # Chart 1
                         dbc.Row([
@@ -369,10 +440,9 @@ def render_page_content(pathname):
                         ]),
 
 
-
                     ])
 
-    elif pathname in ["/page-2"]:
+    elif pathname in ["/page-4"]:
         return html.Div([
                         dbc.Row([
                             # dbc.Col(lg=1),
@@ -436,83 +506,18 @@ def render_page_content(pathname):
                         ]),
                     ])
 
-    elif pathname == "/page-3":
-        return html.Div([
-                html.H5('Text Data - Preprocessed: stopwords removed; words in original form; without numbers; predefined phrase linked by "_"'),
-                dash_table.DataTable(
-                    id='table',
-                    # columns=[{"name": i, "id": i} for i in textdata.columns],
-                    # data=textdata.to_dict('records'),
 
-                    columns=[{"name": i, "id": i} for i in data[['FileID','Text','text']].columns],
-                    data=data[['FileID','Text','text']].to_dict('records'),
+    # elif pathname == "/page-4":
+    #     # return html.Embed('network_proponent.html'),
+    #     # return html.Div([ html.Iframe(src.get_asset_url("network_proponent.html"))])
+    #
+    #     return html.Div([
+    #            html.H1('Title'),
+    #        html.Embed(src = "assets/network_proponent.html", width=850, height=850)
+    #        # style={'width':'1000', 'height': '600'})
+    #     ])
 
-                    editable=False,
-                    filter_action="native",
-                    sort_action="native",
-                    sort_mode="multi",
-                    column_selectable=False,
-                    row_selectable=False,
-                    row_deletable=False,
-                    selected_columns=[],
-                    selected_rows=[],
-                    page_action="native",
-                    page_current= 0,
-                    page_size= 20,
-                    # style_cell_conditional=[
-                    #     {'if': {'column_id': 'Member'},
-                    #      'width': '100px'},
-                    # ]
-                    style_data={
-                        'whiteSpace': 'normal',
-                        'height': 'auto'
-                    },
-                    style_cell={
-                        # 'height': 'auto',
-                        'minWidth': '20px', 'maxWidth': '300px',
-                        # 'whiteSpace': 'normal',
-                        'textAlign': 'left',
-                        'verticalAlign': 'top',
-                        'fontSize':12,
-                    },
-                )
-            ])
-
-    elif pathname == "/page-4":
-        return html.Div([
-                        dbc.Row([
-                            # dbc.Col(lg=1),
-                            dbc.Col([
-                                html.H3('About Ag Doc Analyser', style={'font-weight': 'bold'}),
-                                # html.H5('Updata on 14 June 2020'),
-                                html.P(
-                                    id="description",
-                                    children=dcc.Markdown(
-                                      children=('''
-                                                    Adipiscing lacus ut elementum, nec duis, tempor litora turpis dapibus. Imperdiet cursus odio tortor in elementum.
-                                                    Egestas nunc eleifend feugiat lectus laoreet, vel nunc taciti integer cras. Hac pede dis, praesent nibh ac dui mauris sit.
-                                                    Pellentesque mi, facilisi mauris, elit sociis leo sodales accumsan. Iaculis ac fringilla torquent lorem consectetuer,
-                                                    sociosqu phasellus risus urna aliquam, ornare.
-
-                                                    Adipiscing lacus ut elementum, nec duis, tempor litora turpis dapibus. Imperdiet cursus odio tortor in elementum.
-                                                    Egestas nunc eleifend feugiat lectus laoreet, vel nunc taciti integer cras. Hac pede dis, praesent nibh ac dui mauris sit.
-                                                    Pellentesque mi, facilisi mauris, elit sociis leo sodales accumsan. Iaculis ac fringilla torquent lorem consectetuer,
-                                                    sociosqu phasellus risus urna aliquam, ornare.
-                                        ''')
-                                    )
-                                ),
-                                # html.Br(),
-                                # html.H4('Select a topic or topics, which are defined by a set of keywords:', style={'font-weight': 'bold'}),
-                                # dcc.Dropdown(
-                                #     id='my-dropdown',
-                                #     options=[{'label': v, 'value': k}
-                                #                 for k, v in dict_pillar.items()],
-                                #     multi=False,
-                                #     value= [0,1,2,3,4,5,6,7,8,9],
-                                # ),
-                            ], lg=8),
-                        ]),
-                        ]),
+        # return html.Div([html.Iframe("network_proponent.html")])
     elif pathname in ["/page-5"]:
         # return html.H5("Content to be added page 2.")
         return html.Div([
@@ -563,6 +568,14 @@ def render_page_content(pathname):
                             ], lg=10),
                         ]),
                     ])
+
+
+    elif pathname in ["/page-6"]:
+        return html.Div([
+                        html.H1('Title'),
+                        html.Embed(src = "assets/network_proponent.html", width=850, height=850),
+                        html.Embed(src = "assets/network_crossreference.html", width=850, height=850)
+                        ])
 
     # If the user tries to reach a different page, return a 404 message
     return dbc.Jumbotron(
