@@ -106,9 +106,9 @@ data['Words'] = data['text'].str.split(' ')
 df_cv = pd.read_pickle('data/word-freq-20210501.pickle', compression='zip')
 all_terms = list(df_cv.columns)
 
-# for tf-idf keywords
-tfidf_selected = pd.read_pickle('data/tfidf-20210501.pickle')
-allfileid = tfidf_selected['FileID'].unique().tolist()
+# # for tf-idf keywords
+# tfidf_selected = pd.read_pickle('data/tfidf-20210501.pickle')
+# allfileid = tfidf_selected['FileID'].unique().tolist()
 
 # function to calculate similarity
 def calc_similarity(ids, docs, kRandom=3, nClusters=3, sortCluster=True):
@@ -608,42 +608,42 @@ def render_page_content(pathname):
                                         ], lg=10),
                                 ])
                         ])
-    elif pathname in ["/page-8"]:
-        return html.Div([
-                        dbc.Row([
-                            dbc.Col([
-                                    html.H3('TF-IDF keywords', style={'font-weight': 'bold'}),
-                                    html.P(
-                                        id="description2",
-                                        children=dcc.Markdown(
-                                          children=(
-                                            '''
-                                            Keywords based on TF-IDF. Select documents
-                                            ''')
-                                        )
-                                    ),
-                            ]),
-
-                            ]),
-                        dbc.Row([
-                                dbc.Col([
-                                        html.P(id='tfidf-invalid'),
-                                        dcc.Dropdown(id='tfidf-dropdown',
-                                                     multi=True,
-                                                     value=['AIE-1', 'AIE-2','AIE-3','AIE-4','AIE-5'],
-                                                     placeholder='Select members',
-                                                     options=[{'label': country, 'value': country}
-                                                              for country in allfileid]),
-                                        ],lg=10),
-                                ]),
-                        dbc.Row([
-                                dbc.Col([
-                                        dcc.Graph(
-                                            id='tfidf-plot'
-                                            ),
-                                        ], lg=10),
-                                ])
-                        ])
+    # elif pathname in ["/page-8"]:
+    #     return html.Div([
+    #                     dbc.Row([
+    #                         dbc.Col([
+    #                                 html.H3('TF-IDF keywords', style={'font-weight': 'bold'}),
+    #                                 html.P(
+    #                                     id="description2",
+    #                                     children=dcc.Markdown(
+    #                                       children=(
+    #                                         '''
+    #                                         Keywords based on TF-IDF. Select documents
+    #                                         ''')
+    #                                     )
+    #                                 ),
+    #                         ]),
+    #
+    #                         ]),
+    #                     dbc.Row([
+    #                             dbc.Col([
+    #                                     html.P(id='tfidf-invalid'),
+    #                                     dcc.Dropdown(id='tfidf-dropdown',
+    #                                                  multi=True,
+    #                                                  value=['AIE-1', 'AIE-2','AIE-3','AIE-4','AIE-5'],
+    #                                                  placeholder='Select members',
+    #                                                  options=[{'label': country, 'value': country}
+    #                                                           for country in allfileid]),
+    #                                     ],lg=10),
+    #                             ]),
+    #                     dbc.Row([
+    #                             dbc.Col([
+    #                                     dcc.Graph(
+    #                                         id='tfidf-plot'
+    #                                         ),
+    #                                     ], lg=10),
+    #                             ])
+    #                     ])
 
 
     # If the user tries to reach a different page, return a 404 message
@@ -838,65 +838,65 @@ def update_output(clicks, terms):
 #         [dash.dependencies.State('tfidf-dropdown', 'value')]
 #     )
 
-@app.callback(
-        [Output('tfidf-plot', 'figure'),
-         Output('tfidf-invalid', 'children')
-         ],
-        # [Input('tfidf-button', 'n_clicks')],
-        [Input('tfidf-dropdown', 'value')]
-    )
-
-# def update_output(clicks, terms):
-def update_output(terms):
-    # print(terms)
-
-    # terms = terms.strip().split(' ')
-    # invalid = set(terms) - set(all_terms)
-    # terms = list(set(terms) - invalid)
-
-    # terms = ['competition','ams','food']
-
-    # files = ['AIE-1', 'AIE-2','AIE-3','AIE-4','AIE-5','AIE-6','AIE-7','AIE-8','AIE-9',]
-    # file = 'AIE-1'
-    vis_tfidf = tfidf_selected.set_index('word').groupby(['FileID']).tfidf.nlargest(10).reset_index()
-
-    files = terms
-    # print(files)
-    rows = 2
-    rows = len(terms)//5 + 1
-    cols = 5
-
-    fig = make_subplots(rows=rows, cols=cols, subplot_titles=files)
-    done = False
-    for r in range(rows):
-        for c in range(cols):
-            # print(c+cols*r)
-            if c+cols*r+1 > len(files):
-                done = True
-                break
-            trace = vis_tfidf[vis_tfidf['FileID']==files[c+cols*r]][['word','tfidf']].set_index('word').sort_values('tfidf',ascending=True)
-            fig.add_trace(go.Bar(y=trace.index, x=trace.tfidf, orientation='h',
-                                 marker=dict(color='#7FC97F'
-                                 # 'rgba(58, 71, 80, 0.6)'
-                                 )
-                                 ),
-                          row=r+1, col=c+1,
-                         )
-        if done:
-            break
-
-    fig.update_layout(height=rows*300, width=1200, title_text="Side By Side Subplots", showlegend=False,
-                      font=dict(family="Courier New, monospace",size=9,
-                                # color="RebeccaPur
-                               )
-                     )
-    invalid = ' '
-    return fig, invalid
-
-
-
-
-
+# @app.callback(
+#         [Output('tfidf-plot', 'figure'),
+#          Output('tfidf-invalid', 'children')
+#          ],
+#         # [Input('tfidf-button', 'n_clicks')],
+#         [Input('tfidf-dropdown', 'value')]
+#     )
+#
+# # def update_output(clicks, terms):
+# def update_output(terms):
+#     # print(terms)
+#
+#     # terms = terms.strip().split(' ')
+#     # invalid = set(terms) - set(all_terms)
+#     # terms = list(set(terms) - invalid)
+#
+#     # terms = ['competition','ams','food']
+#
+#     # files = ['AIE-1', 'AIE-2','AIE-3','AIE-4','AIE-5','AIE-6','AIE-7','AIE-8','AIE-9',]
+#     # file = 'AIE-1'
+#     vis_tfidf = tfidf_selected.set_index('word').groupby(['FileID']).tfidf.nlargest(10).reset_index()
+#
+#     files = terms
+#     # print(files)
+#     rows = 2
+#     rows = len(terms)//5 + 1
+#     cols = 5
+#
+#     fig = make_subplots(rows=rows, cols=cols, subplot_titles=files)
+#     done = False
+#     for r in range(rows):
+#         for c in range(cols):
+#             # print(c+cols*r)
+#             if c+cols*r+1 > len(files):
+#                 done = True
+#                 break
+#             trace = vis_tfidf[vis_tfidf['FileID']==files[c+cols*r]][['word','tfidf']].set_index('word').sort_values('tfidf',ascending=True)
+#             fig.add_trace(go.Bar(y=trace.index, x=trace.tfidf, orientation='h',
+#                                  marker=dict(color='#7FC97F'
+#                                  # 'rgba(58, 71, 80, 0.6)'
+#                                  )
+#                                  ),
+#                           row=r+1, col=c+1,
+#                          )
+#         if done:
+#             break
+#
+#     fig.update_layout(height=rows*300, width=1200, title_text="Side By Side Subplots", showlegend=False,
+#                       font=dict(family="Courier New, monospace",size=9,
+#                                 # color="RebeccaPur
+#                                )
+#                      )
+#     invalid = ' '
+#     return fig, invalid
+#
+#
+#
+#
+#
 
 
 
