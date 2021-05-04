@@ -604,7 +604,7 @@ def render_page_content(pathname):
                                         dcc.Graph(
                                             id='term-freq-plot'
                                             ),
-                                        dbc.Button(id='term-freq-button', type='submit', children='Submit', className="mr-2"),
+                                        # dbc.Button(id='term-freq-button', type='submit', children='Submit', className="mr-2"),
                                         ], lg=10),
                                 ])
                         ])
@@ -890,10 +890,6 @@ def update_output(terms):
                                 # color="RebeccaPur
                                )
                      )
-
-    # if len(invalid) >0:
-    #     invalid = 'Invalid term(s): ' + ' '.join(list(invalid))
-    # else:
     invalid = ' '
     return fig, invalid
 
