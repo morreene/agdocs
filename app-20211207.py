@@ -16,15 +16,10 @@ For more details on building multi-page Dash applications, check out the Dash
 documentation: https://dash.plot.ly/urls
 """
 import dash
-from dash import dcc
-# import dash_core_components as dcc
-# import dash_html_components as html
-from dash import html
+import dash_core_components as dcc
+import dash_html_components as html
 import dash_bootstrap_components as dbc
-
-from dash import dash_table
-
-# import dash_table
+import dash_table
 import dash_auth
 from dash.dependencies import Input, Output, State
 
@@ -39,41 +34,26 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 
 from sklearn.cluster import KMeans
-# from scipy.spatial.distance import euclidean
+from scipy.spatial.distance import euclidean
 from scipy.spatial.distance import cdist
 # import warnings
 # warnings.filterwarnings(action='ignore', category=UserWarning, module='gensim')
 
-# from gensim import corpora, models, similarities
-from gensim import corpora,  similarities
-
-# from gensim.corpora import Dictionary
-# from gensim.models import LsiModel, LogEntropyModel
-from gensim.models import LogEntropyModel
-
-# from gensim.models.phrases import Phraser, Phrases
-# from gensim.models.tfidfmodel import TfidfModel
+from gensim import corpora, models, similarities
+from gensim.corpora import Dictionary
+from gensim.models import LsiModel, LogEntropyModel
+from gensim.models.phrases import Phraser, Phrases
+from gensim.models.tfidfmodel import TfidfModel
 # from gensim.matutils import sparse2full
 
-# from wordcloud import WordCloud, STOPWORDS, ImageColorGenerator
-from wordcloud import WordCloud
-
-# import matplotlib.pyplot as plt
+from wordcloud import WordCloud, STOPWORDS, ImageColorGenerator
+import matplotlib.pyplot as plt
 
 # ===== Read Data =====
-# master = pd.read_pickle('data/20210401-master.pickle')
-
-# master = pd.read_excel('data/20211005-DocMaster.xlsx',sheet_name='ListDoc', dtype='str')
-# master.to_pickle('data/20211005-DocMaster.pickle')
-
-master = pd.read_pickle('data/20211005-DocMaster.pickle')
-
+master = pd.read_pickle('data/20210401-master.pickle')
 master = master[['No', 'Symbol', 'Type', 'Year', 'Date', 'Title','Proponents', 'Pillars', 'Topics', 'Available','Source', 'Use', 'FileID']]
 
-# files = master[~master['Proponents'].isin(['Secretariat','Chair'])][['FileID','Year','Proponents','Pillars','Topics']]
-files = master[['FileID','Year','Proponents','Pillars','Topics']].copy()
-
-member = master[~master['Proponents'].isin(['Secretariat','Chair'])]['Proponents'].tolist()
+files = master[~master['Proponents'].isin(['Secretariat','Chair'])][['FileID','Year','Proponents','Pillars','Topics']]
 
 # "Stack" multiple proponents and pillars to different rows
 files['ProponentsList'] = files['Proponents'].str.split(',')
@@ -101,19 +81,13 @@ dict_pillar = dict(zip(dict_pillar, dict_pillar))
 
 dict_proponent = list(files['Proponent'].unique())
 dict_proponent.sort()
-dict_proponent = ['Chair','Secretariat','All Members & Groups'] + dict_proponent
+dict_proponent = ['All'] + dict_proponent
 dict_proponent = dict(zip(dict_proponent, dict_proponent))
 
 dict_topic = list(files['Topic'].unique())
 dict_topic.sort()
 dict_topic = ['All'] + dict_topic
 dict_topic = dict(zip(dict_topic, dict_topic))
-
-dict_year = list(files['Year'].astype(str).unique())
-dict_year.sort()
-dict_year = ['All'] + dict_year
-dict_year = dict(zip(dict_year, dict_year))
-
 
 
 # Text data
@@ -284,15 +258,14 @@ sidebar = html.Div(
         # use the Collapse component to animate hiding / revealing links
         dbc.Collapse(
             dbc.Nav(
-                [
-                    dbc.NavLink("Stats", href="/page-3", id="page-3-link"),
+                [   dbc.NavLink("About", href="/page-1", id="page-1-link"),
                     dbc.NavLink("Data", href="/page-2", id="page-2-link"),
+                    dbc.NavLink("Stats", href="/page-3", id="page-3-link"),
                     dbc.NavLink("Similarity", href="/page-4", id="page-4-link"),
                     dbc.NavLink("WordCloud", href="/page-5", id="page-5-link"),
                     dbc.NavLink("Networks", href="/page-6", id="page-6-link"),
                     dbc.NavLink("Term Freq", href="/page-7", id="page-7-link"),
                     dbc.NavLink("Key TF-IDF", href="/page-8", id="page-8-link"),
-                    dbc.NavLink("About", href="/page-1", id="page-1-link"),
                 ],
                 vertical=True,
                 pills=False,
@@ -337,7 +310,7 @@ def toggle_active_links(pathname):
 def render_page_content(pathname):
     if pathname in ["/", "/page-1"]:
         return html.Div([
-                dbc.Container([
+                dbc.Jumbotron([
                             html.H4("About the Data and the App", className="display-about"),
                             html.P(
                                 "Getting insights from the docs",
@@ -414,18 +387,18 @@ def render_page_content(pathname):
                         # Chart 1
                         dbc.Row([
                             dbc.Col([
-                                html.H3('Summary Statistics of Documents', style={'font-weight': 'bold'}),
+                                html.H3('Summary Stats', style={'font-weight': 'bold'}),
                                 html.P(
                                     id="description",
                                     children=dcc.Markdown(
                                       children=(
                                         '''
-                                        Member submisions, and Chair and Secretariat summaries/notes.
+                                        Members' submissiong, Chair and Secretariat summaries/notes are not included.
                                         ''')
                                     )
                                 ),
                                 html.Br(),
-                                html.H6('Number of documents by year', style={'font-weight': 'bold'}),
+                                html.H6('Number of Proposals by year', style={'font-weight': 'bold'}),
                             ], lg=10),
                         ]),
                         dbc.Row([
@@ -446,7 +419,7 @@ def render_page_content(pathname):
                                     options=[{'label': v, 'value': k}
                                                 for k, v in dict_proponent.items()],
                                     multi=False,
-                                    value= 'All Members & Groups',
+                                    value= 'All',
                                 ),
                             ], lg=4)
                         ]),
@@ -477,7 +450,7 @@ def render_page_content(pathname):
                                     options=[{'label': v, 'value': k}
                                                 for k, v in dict_proponent.items()],
                                     multi=False,
-                                    value= 'All Members & Groups',
+                                    value= 'All',
                                 ),
                             ], lg=4)
                         ]),
@@ -488,77 +461,6 @@ def render_page_content(pathname):
                                 ),
                             ], lg=10),
                         ]),
-
-
-                        # Chart 3
-                        dbc.Row([
-                            dbc.Col([
-                                html.H6('Number of documents by proponent', style={'font-weight': 'bold'}),
-                                html.Label('Select Year:'),
-                                dcc.Dropdown(
-                                    id='stat-3-dropdown-year',
-                                    options=[{'label': v, 'value': k}
-                                                for k, v in dict_year.items()],
-                                    multi=False,
-                                    value= 'All',
-                                ),
-                            ], lg=4),
-                            # dbc.Col([
-                            #     html.Label('Select Proponent:'),
-                            #     dcc.Dropdown(
-                            #         id='stat-year-dropdown-proponent2',
-                            #         options=[{'label': v, 'value': k}
-                            #                     for k, v in dict_proponent.items()],
-                            #         multi=False,
-                            #         value= 'All Members & Groups',
-                            #     ),
-                            # ], lg=4)
-                        ]),
-                        dbc.Row([
-                            dbc.Col([
-                                dcc.Graph(
-                                    id='stat-3-proponent'
-                                ),
-                            ], lg=10),
-                        ]),
-
-
-                        # Chart 4
-                        dbc.Row([
-                            dbc.Col([
-                                html.Br(),
-                                html.Br(),
-                                html.H6('Number of documents by topic', style={'font-weight': 'bold'}),
-                                html.Label('Select Year:'),
-                                dcc.Dropdown(
-                                    id='stat-4-dropdown-year',
-                                    options=[{'label': v, 'value': k}
-                                                for k, v in dict_year.items()],
-                                    multi=False,
-                                    value= 'All',
-                                ),
-                            ], lg=4),
-                            # dbc.Col([
-                            #     html.Label('Select Proponent:'),
-                            #     dcc.Dropdown(
-                            #         id='stat-year-dropdown-proponent2',
-                            #         options=[{'label': v, 'value': k}
-                            #                     for k, v in dict_proponent.items()],
-                            #         multi=False,
-                            #         value= 'All Members & Groups',
-                            #     ),
-                            # ], lg=4)
-                        ]),
-                        dbc.Row([
-                            dbc.Col([
-                                dcc.Graph(
-                                    id='stat-4-topic'
-                                ),
-                            ], lg=10),
-                        ]),
-
-
-
 
 
                     ])
@@ -755,7 +657,7 @@ def render_page_content(pathname):
 
 
     # If the user tries to reach a different page, return a 404 message
-    return dbc.Container(
+    return dbc.Jumbotron(
         [
             html.H1("404: Not found", className="text-danger"),
             html.Hr(),
@@ -769,19 +671,19 @@ def render_page_content(pathname):
              [Input('stat-year-dropdown-pillar', 'value'),
               Input('stat-year-dropdown-proponent', 'value'),
              ])
-def update_graph1(select_pillar, select_proponent):
-    # if not select_pillar:
-    #     raise PreventUpdate
-    # if not select_proponent:
-    #     raise PreventUpdate
+def update_graph(select_pillar, select_proponent):
+    if not select_pillar:
+        raise PreventUpdate
+    if not select_proponent:
+        raise PreventUpdate
 
     if select_pillar == 'All':
         select_pillar = list(files['Pillar'].unique())
     else:
         select_pillar = [select_pillar]
 
-    if select_proponent == 'All Members & Groups':
-        select_proponent = member
+    if select_proponent == 'All':
+        select_proponent = list(files['Proponent'].unique())
     else:
         select_proponent = [select_proponent]
 
@@ -812,19 +714,19 @@ def update_graph1(select_pillar, select_proponent):
              [Input('stat-year-dropdown-topic', 'value'),
               Input('stat-year-dropdown-proponent2', 'value'),
              ])
-def update_graph2(select_topic, select_proponent):
-    # if not select_topic:
-    #     raise PreventUpdate
-    # if not select_proponent:
-    #     raise PreventUpdate
+def update_graph(select_topic, select_proponent):
+    if not select_topic:
+        raise PreventUpdate
+    if not select_proponent:
+        raise PreventUpdate
 
     if select_topic == 'All':
         select_topic = list(files['Topic'].unique())
     else:
         select_topic = [select_topic]
 
-    if select_proponent == 'All Members & Groups':
-        select_proponent = member
+    if select_proponent == 'All':
+        select_proponent = list(files['Proponent'].unique())
     else:
         select_proponent = [select_proponent]
 
@@ -851,151 +753,13 @@ def update_graph2(select_topic, select_proponent):
     return figure
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Stats 3 - Proponent
-@app.callback(Output('stat-3-proponent', 'figure'),
-             [Input('stat-3-dropdown-year', 'value'),
-              # Input('stat-year-dropdown-proponent2', 'value'),
-             ])
-def update_graph3(select_year):
-    # if not select_year:
-    #     raise PreventUpdate
-    # # if not select_proponent:
-    # #     raise PreventUpdate
-
-    if select_year == 'All':
-        select_year = list(files['Year'].unique())
-    else:
-        select_year = [int(select_year)]
-
-
-
-    # if select_proponent == 'All Members & Groups':
-    #     select_proponent = member
-    # else:
-    #     select_proponent = [select_proponent]
-
-    df_plot = files[(files['Year'].isin(select_year)) 
-                    # &  (files['Proponent'].isin(select_proponent))
-                    ].groupby('Proponent')['FileID'].nunique().reset_index(name='Count')
-    
-    df_plot = df_plot.sort_values('Count')
-
-    figure = {
-        'data': [go.Bar(
-            x=df_plot['Proponent'].tolist(),
-            y=df_plot['Count'].tolist(),
-        )],
-        'layout':go.Layout(
-            # title= 'Number of news items by topics',
-            yaxis = dict(
-                # autorange=True,
-                automargin=True
-            ),
-            xaxis=dict(
-                title='',
-                tickmode='linear',
-                tickfont = dict(size=8)
-            )
-        )
-    }
-    return figure
-
-
-
-# Stats 3 - topic
-@app.callback(Output('stat-4-topic', 'figure'),
-             [Input('stat-4-dropdown-year', 'value'),
-              # Input('stat-year-dropdown-proponent2', 'value'),
-             ])
-def update_graph4(select_year):
-    # if not select_year:
-    #     raise PreventUpdate
-    # # if not select_proponent:
-    # #     raise PreventUpdate
-
-    if select_year == 'All':
-        select_year = list(files['Year'].unique())
-    else:
-        select_year = [int(select_year)]
-
-
-
-    # if select_proponent == 'All Members & Groups':
-    #     select_proponent = member
-    # else:
-    #     select_proponent = [select_proponent]
-
-    df_plot = files[(files['Year'].isin(select_year) & (files['Topic']!='X')) 
-                    # &  (files['Proponent'].isin(select_proponent))
-                    ].groupby('Topic')['FileID'].nunique().reset_index(name='Count')
-    
-    df_plot = df_plot.sort_values('Count')
-
-    figure = {
-        'data': [go.Bar(
-            x=df_plot['Topic'].tolist(),
-            y=df_plot['Count'].tolist(),
-        )],
-        'layout':go.Layout(
-            # title= 'Number of news items by topics',
-            yaxis = dict(
-                # autorange=True,
-                automargin=True
-            ),
-            xaxis=dict(
-                title='',
-                tickmode='linear',
-                tickfont = dict(size=8)
-            )
-        )
-    }
-    return figure
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # Similarity
 @app.callback(Output('plot_year1', 'figure'),
              [Input('plot-year-dropdown-pillar1', 'value'),
              ])
-def update_graph_sim(select_pillar1):
-    # if not select_pillar1:
-    #     raise PreventUpdate
+def update_graph(select_pillar1):
+    if not select_pillar1:
+        raise PreventUpdate
     # topic = 'TRQ'
 
     topic = select_pillar1
@@ -1027,9 +791,9 @@ def update_graph_sim(select_pillar1):
 @app.callback(Output('plot_year2', 'figure'),
              [Input('plot-year-dropdown-pillar2', 'value'),
              ])
-def update_graph_cloud(select_pillar2):
-    # if not select_pillar2:
-    #     raise PreventUpdate
+def update_graph(select_pillar2):
+    if not select_pillar2:
+        raise PreventUpdate
 
     if 'data' in globals():
         del data
