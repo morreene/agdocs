@@ -303,7 +303,7 @@ sidebar = html.Div(
 
         html.Div([  html.Hr(),
                     html.P(
-                        "Version 20210504",
+                        "Version 20211208",
                         # className="lead",
                     ),
                 ],
@@ -879,7 +879,8 @@ def update_graph3(select_year):
     if select_year == 'All':
         select_year = list(files['Year'].unique())
     else:
-        select_year = [int(select_year)]
+        # select_year = [int(select_year)]
+        select_year = [select_year]
 
 
 
@@ -930,7 +931,8 @@ def update_graph4(select_year):
     if select_year == 'All':
         select_year = list(files['Year'].unique())
     else:
-        select_year = [int(select_year)]
+        # select_year = [int(select_year)]
+        select_year = [select_year]
 
 
 
