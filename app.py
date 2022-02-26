@@ -61,12 +61,14 @@ from wordcloud import WordCloud
 # import matplotlib.pyplot as plt
 
 # ===== Read Data =====
-# master = pd.read_pickle('data/20210401-master.pickle')
 
-# master = pd.read_excel('data/20211005-DocMaster.xlsx',sheet_name='ListDoc', dtype='str')
-# master.to_pickle('data/20211005-DocMaster.pickle')
+DASH_MASTER = 'data/docmaster.pickle'
+DASH_DATA = 'data/data-preprocessed.pickle'
+DASH_WORD_FREQ = 'data/word-frequency.pickle'
+DASH_TFIDF = 'data/tfidf.pickle'
 
-master = pd.read_pickle('data/20211005-DocMaster.pickle')
+
+master = pd.read_pickle(DASH_MASTER)
 
 master = master[['No', 'Symbol', 'Type', 'Year', 'Date', 'Title','Proponents', 'Pillars', 'Topics', 'Available','Source', 'Use', 'FileID']]
 
@@ -118,29 +120,30 @@ dict_year = dict(zip(dict_year, dict_year))
 
 # Text data
 def load_data():
-    data = pd.read_pickle('data/data_preprocessing_phrase_20210501.pickle')
-    data = data[data['text'].str.len()>100]
 
-    # Consolidate paras to doc
-    data1 = data.groupby('FileID')['text'].apply(lambda x: ' '.join(x)).reset_index()
-    data2 = data.groupby('FileID')['Text'].apply(lambda x: ' '.join(x)).reset_index()
-    data = pd.merge(data1,data2,on='FileID')
-
-    data = pd.merge(data[['FileID','Text','text']], master, left_on='FileID',right_on='FileID')
-    data['Words'] = data['text'].str.split(' ')
+    data = pd.read_pickle(DASH_DATA, compression='zip')
+    # data = data[data['text'].str.len()>100]
+    #
+    # # Consolidate paras to doc
+    # data1 = data.groupby('FileID')['text'].apply(lambda x: ' '.join(x)).reset_index()
+    # data2 = data.groupby('FileID')['Text'].apply(lambda x: ' '.join(x)).reset_index()
+    # data = pd.merge(data1,data2,on='FileID')
+    #
+    # data = pd.merge(data[['FileID','Text','text']], master, left_on='FileID',right_on='FileID')
+    # data['Words'] = data['text'].str.split(' ')
     return data
 
 # for terms frequency
-df_cv = pd.read_pickle('data/word-freq-20210501.pickle', compression='zip')
+df_cv = pd.read_pickle(DASH_WORD_FREQ, compression='zip')
 all_terms = list(df_cv.columns)
 
 allfileid = files['FileID'].unique().tolist()
 
 # for tf-idf keywords
 def load_tfidf():
-    tfidf_selected = pd.read_pickle('data/tfidf-20210501.pickle')
-    # allfileid = tfidf_selected['FileID'].unique().tolist()
-    return tfidf_selected
+    tfidf = pd.read_pickle(DASH_TFIDF)
+    # allfileid = tfidf['FileID'].unique().tolist()
+    return tfidf
 
 # function to calculate similarity
 def calc_similarity(ids, docs, kRandom=3, nClusters=3, sortCluster=True):
@@ -289,9 +292,10 @@ sidebar = html.Div(
                     dbc.NavLink("Data", href="/page-2", id="page-2-link"),
                     dbc.NavLink("Similarity", href="/page-4", id="page-4-link"),
                     dbc.NavLink("WordCloud", href="/page-5", id="page-5-link"),
-                    dbc.NavLink("Networks", href="/page-6", id="page-6-link"),
                     dbc.NavLink("Term Freq", href="/page-7", id="page-7-link"),
                     dbc.NavLink("Key TF-IDF", href="/page-8", id="page-8-link"),
+                    dbc.NavLink("Network: Member", href="/page-6", id="page-6-link"),
+                    dbc.NavLink("Network: Docs", href="/page-9", id="page-9-link"),
                     dbc.NavLink("About", href="/page-1", id="page-1-link"),
                 ],
                 vertical=True,
@@ -301,9 +305,10 @@ sidebar = html.Div(
             # id="sidebar",
         ),
 
-        html.Div([  html.Hr(),
+        html.Div([  
+            # html.Hr(),
                     html.P(
-                        "Version 20211208",
+                        "Version 20220226",
                         # className="lead",
                     ),
                 ],
@@ -676,9 +681,23 @@ def render_page_content(pathname):
     elif pathname in ["/page-6"]:
         return html.Div([
                         # html.H1('Title'),
-                        html.H3('Networks: proposal proponents & document cross reference', style={'font-weight': 'bold'}),
-                        html.Embed(src = "assets/network_proponent.html", width=850, height=850),
-                        html.Embed(src = "assets/network_crossreference.html", width=850, height=850)
+                        html.H3('Networks: proposal proponents', style={'font-weight': 'bold'}),
+                        # html.Embed(src = "assets/network_proponent.html", width=850, height=850),
+                        html.Embed(src = "assets/Proponents Network - year(1997-2001) minEdge(1) KeepGroup(No).html", width=1000, height=700),
+                        html.Embed(src = "assets/Proponents Network - year(1997-2001) minEdge(1) KeepGroup(Yes).html", width=1000, height=700),
+                        html.Embed(src = "assets/Proponents Network - year(2002-2008) minEdge(1) KeepGroup(No).html", width=1000, height=700),
+                        html.Embed(src = "assets/Proponents Network - year(2002-2008) minEdge(1) KeepGroup(Yes).html", width=1000, height=700),
+                        html.Embed(src = "assets/Proponents Network - year(2009-2015) minEdge(1) KeepGroup(No).html", width=1000, height=700),
+                        html.Embed(src = "assets/Proponents Network - year(2009-2015) minEdge(1) KeepGroup(Yes).html", width=1000, height=700),
+                        html.Embed(src = "assets/Proponents Network - year(2016-2021) minEdge(1) KeepGroup(No).html", width=1000, height=700),
+                        html.Embed(src = "assets/Proponents Network - year(2016-2021) minEdge(1) KeepGroup(Yes).html", width=1000, height=700),
+                        ])
+    elif pathname in ["/page-9"]:
+        return html.Div([
+                        # html.H1('Title'),
+                        html.H3('Networks: document cross reference', style={'font-weight': 'bold'}),
+                        # html.Embed(src = "assets/network_proponent.html", width=850, height=850),
+                        html.Embed(src = "assets/cross_reference.html", width=850, height=850)
                         ])
 
 
@@ -889,10 +908,10 @@ def update_graph3(select_year):
     # else:
     #     select_proponent = [select_proponent]
 
-    df_plot = files[(files['Year'].isin(select_year)) 
+    df_plot = files[(files['Year'].isin(select_year))
                     # &  (files['Proponent'].isin(select_proponent))
                     ].groupby('Proponent')['FileID'].nunique().reset_index(name='Count')
-    
+
     df_plot = df_plot.sort_values('Count')
 
     figure = {
@@ -941,10 +960,10 @@ def update_graph4(select_year):
     # else:
     #     select_proponent = [select_proponent]
 
-    df_plot = files[(files['Year'].isin(select_year) & (files['Topic']!='X')) 
+    df_plot = files[(files['Year'].isin(select_year) & (files['Topic']!='X'))
                     # &  (files['Proponent'].isin(select_proponent))
                     ].groupby('Topic')['FileID'].nunique().reset_index(name='Count')
-    
+
     df_plot = df_plot.sort_values('Count')
 
     figure = {
@@ -1116,8 +1135,8 @@ def update_output(terms):
 
     # files = ['AIE-1', 'AIE-2','AIE-3','AIE-4','AIE-5','AIE-6','AIE-7','AIE-8','AIE-9',]
     # file = 'AIE-1'
-    tfidf_selected = load_tfidf()
-    vis_tfidf = tfidf_selected.set_index('word').groupby(['FileID']).tfidf.nlargest(10).reset_index()
+    tfidf = load_tfidf()
+    vis_tfidf = tfidf.set_index('word').groupby(['FileID']).tfidf.nlargest(10).reset_index()
 
     files = terms
     # print(files)
