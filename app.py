@@ -70,20 +70,20 @@ DASH_TFIDF = 'data/tfidf.pickle'
 
 master = pd.read_pickle(DASH_MASTER)
 
-master = master[['No', 'Symbol', 'Type', 'Year', 'Date', 'Title','Proponents', 'Pillars', 'Topics', 'Available','Source', 'Use', 'FileID']]
+master = master[['No', 'Symbol', 'Type', 'Year', 'Date', 'Title','Authors', 'Pillars', 'Topics', 'Available','Source', 'Use', 'FileID']]
 
-# files = master[~master['Proponents'].isin(['Secretariat','Chair'])][['FileID','Year','Proponents','Pillars','Topics']]
-files = master[['FileID','Year','Proponents','Pillars','Topics']].copy()
+# files = master[~master['Authors'].isin(['Secretariat','Chair'])][['FileID','Year','Authors','Pillars','Topics']]
+files = master[['FileID','Year','Authors','Pillars','Topics']].copy()
 
-member = master[~master['Proponents'].isin(['Secretariat','Chair'])]['Proponents'].tolist()
+member = master[~master['Authors'].isin(['Secretariat','Chair'])]['Authors'].tolist()
 
 # "Stack" multiple proponents and pillars to different rows
-files['ProponentsList'] = files['Proponents'].str.split(',')
+files['AuthorsList'] = files['Authors'].str.split(',')
 files['PillarsList'] = files['Pillars'].str.split(',')
 files['TopicsList'] = files['Topics'].str.split(',')
 
-proponent = files.apply(lambda x: pd.Series(x['ProponentsList']), axis=1).stack().reset_index(level=1, drop=True)
-proponent.name = 'Proponent'
+proponent = files.apply(lambda x: pd.Series(x['AuthorsList']), axis=1).stack().reset_index(level=1, drop=True)
+proponent.name = 'Author'
 pillar = files.apply(lambda x: pd.Series(x['PillarsList']), axis=1).stack().reset_index(level=1, drop=True)
 pillar.name = 'Pillar'
 topic = files.apply(lambda x: pd.Series(x['TopicsList']), axis=1).stack().reset_index(level=1, drop=True)
@@ -93,7 +93,7 @@ files = files.join(pillar)
 files = files.join(proponent)
 files = files.join(topic)
 
-files['Proponent'] = files['Proponent'].str.strip()
+files['Author'] = files['Author'].str.strip()
 files['Pillar'] = files['Pillar'].str.strip()
 files['Topic'] = files['Topic'].str.strip()
 
@@ -101,7 +101,7 @@ files['Topic'] = files['Topic'].str.strip()
 dict_pillar = ['All'] + list(files['Pillar'].unique())
 dict_pillar = dict(zip(dict_pillar, dict_pillar))
 
-dict_proponent = list(files['Proponent'].unique())
+dict_proponent = list(files['Author'].unique())
 dict_proponent.sort()
 dict_proponent = ['Chair','Secretariat','All Members & Groups'] + dict_proponent
 dict_proponent = dict(zip(dict_proponent, dict_proponent))
@@ -308,7 +308,7 @@ sidebar = html.Div(
         html.Div([  
             # html.Hr(),
                     html.P(
-                        "Version 20220226",
+                        "Version 20230127",
                         # className="lead",
                     ),
                 ],
@@ -445,7 +445,7 @@ def render_page_content(pathname):
                                 ),
                             ], lg=4),
                             dbc.Col([
-                                html.Label('Select Proponent:'),
+                                html.Label('Select Author:'),
                                 dcc.Dropdown(
                                     id='stat-year-dropdown-proponent',
                                     options=[{'label': v, 'value': k}
@@ -476,7 +476,7 @@ def render_page_content(pathname):
                                 ),
                             ], lg=4),
                             dbc.Col([
-                                html.Label('Select Proponent:'),
+                                html.Label('Select Author:'),
                                 dcc.Dropdown(
                                     id='stat-year-dropdown-proponent2',
                                     options=[{'label': v, 'value': k}
@@ -509,7 +509,7 @@ def render_page_content(pathname):
                                 ),
                             ], lg=4),
                             # dbc.Col([
-                            #     html.Label('Select Proponent:'),
+                            #     html.Label('Select Author:'),
                             #     dcc.Dropdown(
                             #         id='stat-year-dropdown-proponent2',
                             #         options=[{'label': v, 'value': k}
@@ -544,7 +544,7 @@ def render_page_content(pathname):
                                 ),
                             ], lg=4),
                             # dbc.Col([
-                            #     html.Label('Select Proponent:'),
+                            #     html.Label('Select Author:'),
                             #     dcc.Dropdown(
                             #         id='stat-year-dropdown-proponent2',
                             #         options=[{'label': v, 'value': k}
@@ -610,7 +610,7 @@ def render_page_content(pathname):
                                 ),
                             ], lg=4),
                             # dbc.Col([
-                            #     html.Label('Select Proponent:'),
+                            #     html.Label('Select Author:'),
                             #     dcc.Dropdown(
                             #         id='plot-year-dropdown-proponent1',
                             #         options=[{'label': v, 'value': k}
@@ -805,7 +805,7 @@ def update_graph1(select_pillar, select_proponent):
         select_proponent = [select_proponent]
 
     df_plot = files[(files['Pillar'].isin(select_pillar)) &
-                    (files['Proponent'].isin(select_proponent))].groupby('Year')['FileID'].nunique().reset_index(name='Count')
+                    (files['Author'].isin(select_proponent))].groupby('Year')['FileID'].nunique().reset_index(name='Count')
 
     figure = {
         'data': [go.Bar(
@@ -848,7 +848,7 @@ def update_graph2(select_topic, select_proponent):
         select_proponent = [select_proponent]
 
     df_plot = files[(files['Topic'].isin(select_topic)) &
-                    (files['Proponent'].isin(select_proponent))].groupby('Year')['FileID'].nunique().reset_index(name='Count')
+                    (files['Author'].isin(select_proponent))].groupby('Year')['FileID'].nunique().reset_index(name='Count')
 
     figure = {
         'data': [go.Bar(
@@ -884,7 +884,7 @@ def update_graph2(select_topic, select_proponent):
 
 
 
-# Stats 3 - Proponent
+# Stats 3 - Author
 @app.callback(Output('stat-3-proponent', 'figure'),
              [Input('stat-3-dropdown-year', 'value'),
               # Input('stat-year-dropdown-proponent2', 'value'),
@@ -909,14 +909,14 @@ def update_graph3(select_year):
     #     select_proponent = [select_proponent]
 
     df_plot = files[(files['Year'].isin(select_year))
-                    # &  (files['Proponent'].isin(select_proponent))
-                    ].groupby('Proponent')['FileID'].nunique().reset_index(name='Count')
+                    # &  (files['Author'].isin(select_proponent))
+                    ].groupby('Author')['FileID'].nunique().reset_index(name='Count')
 
     df_plot = df_plot.sort_values('Count')
 
     figure = {
         'data': [go.Bar(
-            x=df_plot['Proponent'].tolist(),
+            x=df_plot['Author'].tolist(),
             y=df_plot['Count'].tolist(),
         )],
         'layout':go.Layout(
@@ -961,7 +961,7 @@ def update_graph4(select_year):
     #     select_proponent = [select_proponent]
 
     df_plot = files[(files['Year'].isin(select_year) & (files['Topic']!='X'))
-                    # &  (files['Proponent'].isin(select_proponent))
+                    # &  (files['Author'].isin(select_proponent))
                     ].groupby('Topic')['FileID'].nunique().reset_index(name='Count')
 
     df_plot = df_plot.sort_values('Count')
@@ -1098,6 +1098,15 @@ def update_output(clicks, terms):
     freq= freq.groupby('Date')[terms].mean()
 
     fig = px.line(freq.ewm(span = 50).mean())
+    
+    
+    # fig = go.Figure()
+
+    # fig.add_trace(go.Scatter(x=x, y=y + 5, name="spline",
+    #                 text=["tweak line smoothness<br>with 'smoothing' in line object"],
+    #                 hoverinfo='text+name',
+    #                 line_shape='spline'))
+    
 
     if len(invalid) >0:
         invalid = 'Invalid term(s): ' + ' '.join(list(invalid))
