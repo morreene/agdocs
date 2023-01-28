@@ -17,8 +17,7 @@ documentation: https://dash.plot.ly/urls
 """
 import dash
 from dash import dcc
-# import dash_core_components as dcc
-# import dash_html_components as html
+
 from dash import html
 import dash_bootstrap_components as dbc
 
@@ -197,8 +196,6 @@ def calc_similarity(ids, docs, kRandom=3, nClusters=3, sortCluster=True):
 
 
 # ===== App =====
-# Username and password for login
-VALID_USERNAME_PASSWORD_PAIRS = {'wto': 'wto'}
 
 external_stylesheets = ['https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css']
 # external_stylesheets = ['https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/css/bootstrap.min.css']
@@ -206,6 +203,8 @@ external_stylesheets = ['https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/
 # with "__name__" local css under assets is also included
 app = dash.Dash(__name__, external_stylesheets = external_stylesheets)
 
+# Username and password for login
+VALID_USERNAME_PASSWORD_PAIRS = {'wto': 'wto'}
 auth = dash_auth.BasicAuth(
     app,
     VALID_USERNAME_PASSWORD_PAIRS
