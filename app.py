@@ -17,15 +17,11 @@ documentation: https://dash.plot.ly/urls
 """
 import dash
 from dash import dcc
-
 from dash import html
-import dash_bootstrap_components as dbc
-
 from dash import dash_table
-
-# import dash_table
-import dash_auth
 from dash.dependencies import Input, Output, State
+import dash_bootstrap_components as dbc
+import dash_auth
 
 import pandas as pd
 import numpy as np
@@ -66,9 +62,7 @@ DASH_DATA = 'data/data-preprocessed.pickle'
 DASH_WORD_FREQ = 'data/word-frequency.pickle'
 DASH_TFIDF = 'data/tfidf.pickle'
 
-
 master = pd.read_pickle(DASH_MASTER)
-
 master = master[['No', 'Symbol', 'Type', 'Year', 'Date', 'Title','Authors', 'Pillars', 'Topics', 'Available','Source', 'Use', 'FileID']]
 
 # files = master[~master['Authors'].isin(['Secretariat','Chair'])][['FileID','Year','Authors','Pillars','Topics']]
@@ -191,10 +185,6 @@ def calc_similarity(ids, docs, kRandom=3, nClusters=3, sortCluster=True):
         return df_sims
 
 
-
-
-
-
 # ===== App =====
 
 external_stylesheets = ['https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css']
@@ -286,16 +276,15 @@ sidebar = html.Div(
         # use the Collapse component to animate hiding / revealing links
         dbc.Collapse(
             dbc.Nav(
-                [
-                    dbc.NavLink("Stats", href="/page-3", id="page-3-link"),
-                    dbc.NavLink("Data", href="/page-2", id="page-2-link"),
-                    dbc.NavLink("Similarity", href="/page-4", id="page-4-link"),
-                    dbc.NavLink("WordCloud", href="/page-5", id="page-5-link"),
-                    dbc.NavLink("Term Freq", href="/page-7", id="page-7-link"),
-                    dbc.NavLink("Key TF-IDF", href="/page-8", id="page-8-link"),
-                    dbc.NavLink("Network: Member", href="/page-6", id="page-6-link"),
-                    dbc.NavLink("Network: Docs", href="/page-9", id="page-9-link"),
-                    dbc.NavLink("About", href="/page-1", id="page-1-link"),
+                [   dbc.NavLink("About",            href="/page-1", id="page-1-link"),
+                    dbc.NavLink("Text Data",        href="/page-2", id="page-2-link"),
+                    dbc.NavLink("Document Stats",   href="/page-3", id="page-3-link"),
+                    dbc.NavLink("Similarity",       href="/page-4", id="page-4-link"),
+                    dbc.NavLink("WordCloud",        href="/page-5", id="page-5-link"),
+                    dbc.NavLink("Term Freqency",    href="/page-7", id="page-7-link"),
+                    dbc.NavLink("Keywords TF-IDF",  href="/page-8", id="page-8-link"),
+                    dbc.NavLink("Network: Member",  href="/page-6", id="page-6-link"),
+                    dbc.NavLink("Network: Docs",    href="/page-9", id="page-9-link"),
                 ],
                 vertical=True,
                 pills=False,
@@ -342,26 +331,49 @@ def render_page_content(pathname):
     if pathname in ["/", "/page-1"]:
         return html.Div([
                 dbc.Container([
-                            html.H4("About the Data and the App", className="display-about"),
+                            html.H4("About AgDocs Analyzer - the data, charts and app", className="display-about"),
                             html.P(
-                                "Getting insights from the docs",
+                                "Getting insights of 20+ year history from the docs",
                                 className="lead",
                             ),
                             html.Hr(className="my-2"),
                             dcc.Markdown(
                                 '''
-                                Pellentesque posuere pellentesque imperde laoreet’s Velit leading pulvinar velit a hendrerit Donec non pellentesque jus businesses tincidunt. Suspendisse at maximus turpis, non loborsrt.
+                                This tool, developed by MAIS (ERSD), presents the results of a joint project between AGCD and ERSD-MAIS. The project aimed to:
 
-                                    Dolor sit amet consectetur elit sed do eiusmod tempor incididunt labore et dolore
-                                    magna aliqua enim ad minim veniam quis nostrud exercitation ulac laboris aliquip
-                                    ex ea commodo consequat duis aute irure.dolor in repre henderit in voluptate velit
-                                    esse cillum dolore eu fugiat nulla pariatur excep teur sint cupidatat non proident.
+                                * Compile all documents related to agriculture negotiations in the WTO since 1997, when the analysis and exchange of information process began.
+                                * Create a method and tool for quantitative analysis of these documents, organized by nature, topic, and content.
 
-                                Pellentesque posuere pellentesque imperde laoreet’s Velit leading pulvinar velit a hendrerit Donec non pellentesque jus businesses tincidunt. Suspendisse at maximus turpis, non loborsrt.
+                                ##### Text Data
+                                This section displays the full collection of documents and the extracted text features. Only the text
+                                is extracted from Word/PDF documents, while tables and formatting are ignored. The "text" column contains 
+                                processed text data, produced by a NLP program, including cleaning, standardizing, removing stopwords, stemming, and other techniques.
 
-                                * consectetur elit sed do eius
-                                * consectetur elit sed
-                                * consectetur elit sed do
+                                ##### Document Statistics
+                                This section includes a series of charts that provide summary statistics of the documents, including 
+                                counts of documents by year, member, and pillar (or category). It should be noted that the documents in the 
+                                collection are of different nature, although efforts have been made to exclude identical documents, such as those with marginal revisions.
+
+                                ##### Similarity
+                                This section allows for the comparison of similarity or difference between two documents.
+
+                                ##### WordCloud
+                                This section displays the words with the highest occurrences in the collection.
+
+                                ##### Term Frequency
+                                This section shows the frequency at which a word is used across the collection over time.
+
+                                ##### Keywords TF-IDF
+                                This section displays the keywords of the documents in the collection.
+
+                                ##### Network: Member
+                                This section shows the connections between members through jointly authored and negotiated documents.
+
+                                ##### Network: Docs
+                                This section shows the links between documents through cross-references.
+
+
+                                ***contact: @wto.org***
                                 '''
                                 ),
                         ])
@@ -413,7 +425,6 @@ def render_page_content(pathname):
             ])
 
     elif pathname in ["/page-3"]:
-
         return html.Div([
                         # Chart 1
                         dbc.Row([
