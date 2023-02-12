@@ -408,10 +408,11 @@ def render_page_content(pathname):
                     page_action="native",
                     page_current= 0,
                     page_size= 20,
-                    # style_cell_conditional=[
-                    #     {'if': {'column_id': 'Member'},
-                    #      'width': '100px'},
-                    # ]
+                    style_cell_conditional=[
+                        {'if': {'column_id': 'FileID'},
+                         'width': '80px'},
+                    ],
+
                     style_data={
                         'whiteSpace': 'normal',
                         'height': 'auto'
