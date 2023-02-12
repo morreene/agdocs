@@ -296,7 +296,7 @@ sidebar = html.Div(
         html.Div([  
             # html.Hr(),
                     html.P(
-                        "Version 20230127",
+                        "Version 20230212",
                         # className="lead",
                     ),
                 ],
@@ -382,6 +382,7 @@ def render_page_content(pathname):
         if 'data' in globals():
             del data
         data = load_data()
+        data = data.rename(columns={'text':'Normalized Text'})
         return html.Div([
                 html.H3('Text Data', style={'font-weight': 'bold'}),
                 html.P('Preprocessed: stopwords removed; words in original form; without numbers; predefined phrase linked by "_"'),
@@ -389,9 +390,11 @@ def render_page_content(pathname):
                     id='table',
                     # columns=[{"name": i, "id": i} for i in textdata.columns],
                     # data=textdata.to_dict('records'),
+                    columns=[{"name": i, "id": i} for i in data[['FileID','Text','Normalized Text']].columns],
+                    data=data[['FileID','Text','Normalized Text']].to_dict('records'),
 
-                    columns=[{"name": i, "id": i} for i in data[['FileID','Text','text']].columns],
-                    data=data[['FileID','Text','text']].to_dict('records'),
+                    # columns=[{"name": i, "id": i} for i in data[['FileID','Text','text']].columns],
+                    # data=data[['FileID','Text','text']].to_dict('records'),
 
                     editable=False,
                     filter_action="native",
