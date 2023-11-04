@@ -1,61 +1,39 @@
-"""
-This app creates a responsive sidebar layout with dash-bootstrap-components and
-some custom css with media queries.
-
-When the screen is small, the sidebar moved to the top of the page, and the
-links get hidden in a collapse element. We use a callback to toggle the
-collapse when on a small screen, and the custom CSS to hide the toggle, and
-force the collapse to stay open when the screen is large.
-
-dcc.Location is used to track the current location. There are two callbacks,
-one uses the current location to render the appropriate page content, the other
-uses the current location to toggle the "active" properties of the navigation
-links.
-
-For more details on building multi-page Dash applications, check out the Dash
-documentation: https://dash.plot.ly/urls
-"""
+from flask import Flask, session
+from flask_session import Session
+from dash import Dash, dcc, html
 import dash
-from dash import dcc
-from dash import html
-from dash import dash_table
 from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
-import dash_auth
-
+# to delete dash_table
+from dash import html, dcc, dash_table
+import urllib.parse
 import pandas as pd
-import numpy as np
-# import urllib.parse
-# import os
-# import datetime
+
+
+
 
 import plotly.graph_objs as go
 import plotly.express as px
 from plotly.subplots import make_subplots
 
-from sklearn.cluster import KMeans
-# from scipy.spatial.distance import euclidean
-from scipy.spatial.distance import cdist
-# import warnings
-# warnings.filterwarnings(action='ignore', category=UserWarning, module='gensim')
 
-# from gensim import corpora, models, similarities
-from gensim import corpora,  similarities
 
-# from gensim.corpora import Dictionary
-# from gensim.models import LsiModel, LogEntropyModel
-from gensim.models import LogEntropyModel
 
-# from gensim.models.phrases import Phraser, Phrases
-# from gensim.models.tfidfmodel import TfidfModel
-# from gensim.matutils import sparse2full
+#################################################
+#####     configurations
+#################################################
 
-# from wordcloud import WordCloud, STOPWORDS, ImageColorGenerator
-from wordcloud import WordCloud
 
-# import matplotlib.pyplot as plt
 
-# ===== Read Data =====
+#################################################
+#####     Functions
+#################################################
+
+
+
+#################################################
+#####     Load data 
+#################################################
 
 DASH_MASTER = 'data/docmaster.pickle'
 DASH_DATA = 'data/data-preprocessed.pickle'
@@ -63,7 +41,7 @@ DASH_WORD_FREQ = 'data/word-frequency.pickle'
 DASH_TFIDF = 'data/tfidf.pickle'
 
 master = pd.read_pickle(DASH_MASTER)
-master = master[['No', 'Symbol', 'Type', 'Year', 'Date', 'Title','Authors', 'Pillars', 'Topics', 'Available','Source', 'Use', 'FileID']]
+master = master[['No', 'Symbol', 'Type', 'Year', 'Date', 'Title','Authors', 'Pillars', 'Topics', 'FileID']]
 
 # files = master[~master['Authors'].isin(['Secretariat','Chair'])][['FileID','Year','Authors','Pillars','Topics']]
 files = master[['FileID','Year','Authors','Pillars','Topics']].copy()
@@ -113,7 +91,6 @@ dict_year = dict(zip(dict_year, dict_year))
 
 # Text data
 def load_data():
-
     data = pd.read_pickle(DASH_DATA, compression='zip')
     # data = data[data['text'].str.len()>100]
     #
@@ -185,31 +162,39 @@ def calc_similarity(ids, docs, kRandom=3, nClusters=3, sortCluster=True):
         return df_sims
 
 
-# ===== App =====
 
+#################################################
+##### Dash App
+#################################################
+
+# Hardcoded users (for demo purposes)
+USERS = {"admin": "admin", "w": "w", "wto": "wto"}
+
+server = Flask(__name__)
+server.config['SECRET_KEY'] = 'supersecretkey'
+server.config['SESSION_TYPE'] = 'filesystem'
+
+Session(server)
+
+# dash app
 external_stylesheets = ['https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css']
-# external_stylesheets = ['https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/css/bootstrap.min.css']
+app = Dash(__name__, server=server, 
+        #    external_stylesheets=[dbc.themes.BOOTSTRAP], 
+           external_stylesheets = external_stylesheets,
+           suppress_callback_exceptions=True
+           )
 
-# with "__name__" local css under assets is also included
-app = dash.Dash(__name__, external_stylesheets = external_stylesheets)
-
-# Username and password for login
-VALID_USERNAME_PASSWORD_PAIRS = {'wto': 'wto'}
-auth = dash_auth.BasicAuth(
-    app,
-    VALID_USERNAME_PASSWORD_PAIRS
-)
-app.title = 'Trade News Tracker'
+app.title = 'AgDocs Dataset'
 app.index_string = """<!DOCTYPE html>
 <html>
     <head>
         <!-- Global site tag (gtag.js) - Google Analytics -->
-        <script async src="https://www.googletagmanager.com/gtag/js?id=UA-62289743-8"></script>
+        <script async src="https://www.googletagmanager.com/gtag/js?id=UA-62289743-10"></script>
         <script>
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
           gtag('js', new Date());
-          gtag('config', 'UA-62289743-8');
+          gtag('config', 'UA-62289743-10');
         </script>
 
         {%metas%}
@@ -227,111 +212,137 @@ app.index_string = """<!DOCTYPE html>
     </body>
 </html>"""
 
-server = app.server
-app.config.suppress_callback_exceptions = True
-
-# we use the Row and Col components to construct the sidebar header
-# it consists of a title, and a toggle, the latter is hidden on large screens
-sidebar_header = dbc.Row(
-    [
-        # dbc.Col(html.H3("Ag Texts", className="display-4000")),
-        dbc.Col(html.Img(src=app.get_asset_url("logo.png"), width="130px", style={'margin-left':'15px'})),
-        dbc.Col(
-            html.Button(
-                # use the Bootstrap navbar-toggler classes to style the toggle
-                html.Span(className="navbar-toggler-icon"),
-                className="navbar-toggler",
-                # the navbar-toggler classes don't set color, so we do it here
-                style={
-                    "color": "rgba(0,0,0,.5)",
-                    "bordercolor": "rgba(0,0,0,.1)",
-                },
-                id="toggle",
-            ),
-            # the column containing the toggle will be only as wide as the
-            # toggle, resulting in the toggle being right aligned
-            width="auto",
-            # vertically align the toggle in the center
-            align="center",
+### sidebar
+sidebar_header = dbc.Row([
+    html.A([dbc.Col(html.Img(src=app.get_asset_url("logo.png"),  width="180px", style={'margin-left':'15px', 'margin-bottom':'50px'}))], href="/page-1"),
+    dbc.Col(
+        html.Button(
+            # use the Bootstrap navbar-toggler classes to style the toggle
+            html.Span(className="navbar-toggler-icon"),
+            className="navbar-toggler",
+            # the navbar-toggler classes don't set color, so we do it here
+            style={
+                "color": "rgba(0,0,0,.5)",
+                "bordercolor": "rgba(0,0,0,.1)",
+            },
+            id="toggle",
         ),
-    ]
-)
+        # the column containing the toggle will be only as wide as the
+        # toggle, resulting in the toggle being right aligned
+        width="auto",
+        # vertically align the toggle in the center
+        align="center",
+    ),
+])
 
-sidebar = html.Div(
-    [
-        sidebar_header,
-        # we wrap the horizontal rule and short blurb in a div that can be
-        # hidden on a small screen
-        html.Div(
-            [
-                html.Br(),
-                html.Br(),
-                # html.P(
-                #     "Follow the trade news with data",
-                    # className="lead",
-                # ),1
-            ],
-            id="blurb",
-        ),
-        # use the Collapse component to animate hiding / revealing links
-        dbc.Collapse(
-            dbc.Nav(
-                [   dbc.NavLink("About",            href="/page-1", id="page-1-link"),
-                    dbc.NavLink("Text Data",        href="/page-2", id="page-2-link"),
-                    dbc.NavLink("Document Stats",   href="/page-3", id="page-3-link"),
-                    dbc.NavLink("Similarity",       href="/page-4", id="page-4-link"),
-                    dbc.NavLink("WordCloud",        href="/page-5", id="page-5-link"),
-                    dbc.NavLink("Term Freqency",    href="/page-7", id="page-7-link"),
-                    dbc.NavLink("Keywords TF-IDF",  href="/page-8", id="page-8-link"),
-                    dbc.NavLink("Network: Member",  href="/page-6", id="page-6-link"),
-                    dbc.NavLink("Network: Docs",    href="/page-9", id="page-9-link"),
-                ],
-                vertical=True,
-                pills=False,
-            ),
-            id="collapse",
-            # id="sidebar",
-        ),
-
-        html.Div([  
-            # html.Hr(),
-                    html.P(
-                        "Version 20230222-A",
-                        # className="lead",
+sidebar = html.Div([
+                    sidebar_header,
+                    # use the Collapse component to animate hiding / revealing links
+                    dbc.Collapse(
+                        dbc.Nav([
+                                dbc.NavLink("Home",                 href="/page-1", id="page-1-link"),
+                                dbc.NavLink("Project Report",       href="/page-2", id="page-2-link"),
+                                dbc.NavLink("Document Inventory",   href="/page-3", id="page-3-link"),
+                                dbc.NavLink("Document Texts",       href="/page-4", id="page-4-link"),
+                                dbc.NavLink("Summary Statistics",     href="/page-5", id="page-5-link"),
+                                # dbc.NavLink("Stats: by topic",      href="/page-6", id="page-6-link"),
+                                # dbc.NavLink("Stats: doc size",      href="/page-7", id="page-7-link"),
+                                dbc.NavLink("Network - Authors",      href="/page-6", id="page-6-link"),
+                                dbc.NavLink("Network - Documents",   href="/page-7", id="page-7-link"),
+                            ], vertical=True, pills=False,
+                        ), id="collapse",
                     ),
-                ],
-            id="blurb-bottom",
-            ),
-    ],
-    id="sidebar",
-)
+                    html.Div([html.P("V1.0 (20231104)",
+                                # className="lead",
+                            ),],id="blurb-bottom",
+                    ),
+                ], id="sidebar",
+            )
 
 content = html.Div(id="page-content")
-app.layout = html.Div([dcc.Location(id="url"), sidebar, content])
 
 # this callback uses the current pathname to set the active state of the
 # corresponding nav link to true, allowing users to tell see page they are on
 @app.callback(
-    [Output(f"page-{i}-link", "active") for i in range(1, 9)],
+    [Output(f"page-{i}-link", "active") for i in range(1, 8)],
     [Input("url", "pathname")],
 )
 def toggle_active_links(pathname):
     if pathname == "/":
         # Treat page 1 as the homepage / index
-        return True, False, False, False, False, False, False, False
-    return [pathname == f"/page-{i}" for i in range(1, 9)]
+        return True, False, False, False, False, 
+    return [pathname == f"/page-{i}" for i in range(1, 8)]
 
+app.layout = html.Div([
+    dcc.Location(id='url', refresh=False),
+    dcc.Location(id='logout-url', refresh=False),  # Added logout URL component
+    # login facet
+    dbc.Container(
+        dbc.Row(
+            dbc.Col(
+                dbc.Card(
+                    dbc.CardBody(
+                        [
+                            html.H5("Sign in to AgDocs", className="card-title"),
+                            html.Br(),
+                            dbc.Form(
+                                [
+                                    dbc.Row([
+                                            dbc.Col([
+                                                    dbc.Input(type="text", id="username", placeholder="Username", style={"width": 300}),
+                                                ], className="mb-3",
+                                            )
+                                        ]
+                                    ),
+                                    dbc.Row([
+                                            dbc.Col([
+                                                    dbc.Input(type="password",  id="password", placeholder="Password",style={"width": 300}),
+                                                ], className="mb-3",
+                                            )
+                                        ]
+                                    ),
+                                    dbc.Button(id='login-button', children='Sign in', n_clicks=0, color="primary", className="my-custom-button", style={"width": 300}),
+                                ], 
+                            ),
+                        ], className="d-grid gap-2 col-8 mx-auto",
+                    ),
+                    className="text-center",
+                    style={"width": "500px", "margin": "auto", "background-color": "#e4f5f2"},
+                ), width=6, className="mt-5",
+            )
+        ), id='login-facet',className="login-page",
+    ),
 
+    html.Div([sidebar, content], id='page-layout', style={'display': 'none'}),
+])
 
+@app.callback(
+    [Output('login-facet', 'style'),
+    Output('page-layout', 'style')],
+    [Input('login-button', 'n_clicks')],
+    [State('username', 'value'), State('password', 'value')]
+)
+def update_output(n_clicks, username, password):
+    if n_clicks > 0:
+        if username in USERS and USERS[username] == password:
+            session['authed'] = True
+    if session.get('authed', False):
+        return  {'display': 'none'}, {'display': 'block'}
+    else:
+        return {}, {'display': 'none'}
 
-
-
-@app.callback(Output("page-content", "children"), [Input("url", "pathname")])
-def render_page_content(pathname):
-    if pathname in ["/", "/page-1"]:
+# render content according to path
+@app.callback(Output("page-content", "children"),
+              Output("logout-url", "pathname"),  # Added callback output for logout URL
+              [Input("url", "pathname"), Input("logout-url", "pathname")])
+def render_page_content(pathname, logout_pathname):
+    if logout_pathname == "/logout":  # Handle logout
+        session.pop('authed', None)
+        return dcc.Location(pathname="/login", id="redirect-to-login"), "/logout"
+    elif pathname in ["/","/login", "/page-1"]:
         return html.Div([
                 dbc.Container([
-                            html.H4("About AgDocs Analyzer - the data, charts and app", className="display-about"),
+                            html.H4("About AgDocs Dataset", className="display-about"),
                             html.P(
                                 "Getting insights of 20+ year history from the docs",
                                 className="lead",
@@ -339,59 +350,100 @@ def render_page_content(pathname):
                             html.Hr(className="my-2"),
                             dcc.Markdown(
                                 '''
-                                This tool, developed by MAIS (ERSD), presents the results of a joint project between AGCD and ERSD-MAIS. The project aimed to:
+                                    This site presents the results of a joint project between AGCD and ERSD-MAIS. The project aimed to:
 
-                                * Compile all documents related to agriculture negotiations in the WTO since 1997, when the analysis and exchange of information process began.
-                                * Create a method and tool for quantitative analysis of these documents, organized by nature, topic, and content.
+                                    * Compile all documents related to agriculture negotiations in the WTO since 1997, when the analysis and exchange of information process began.
+                                    * Explore a method and tool for quantitative analysis of these documents, organized by nature, topic, and content.
 
-                                ##### Text Data
-                                This section displays the full collection of documents and the extracted text features. Only the text
-                                is extracted from Word/PDF documents, while tables and formatting are ignored. The "text" column contains 
-                                processed text data, produced by a NLP program, including cleaning, standardizing, removing stopwords, stemming, and other techniques.
+                                    ##### Document texts
+                                    This section displays the full collection of documents and the extracted text features. Only the text
+                                    is extracted from Word/PDF documents, while tables and formatting are ignored. 
 
-                                ##### Document Statistics
-                                This section includes a series of charts that provide summary statistics of the documents, including 
-                                counts of documents by year, member, and pillar (or category). It should be noted that the documents in the 
-                                collection are of different nature, although efforts have been made to exclude identical documents, such as those with marginal revisions.
+                                    ##### Document Statistics
+                                    This section includes a series of charts that provide summary statistics of the documents, including 
+                                    counts of documents by year, member, and pillar (or category). It should be noted that the documents in the 
+                                    collection are of different nature, although efforts have been made to exclude identical documents, such as those with marginal revisions.
 
-                                ##### Similarity
-                                This section allows for the comparison of similarity or difference between two documents.
+                                    ##### Network: Member
+                                    This section shows the connections between members through jointly authored and negotiated documents.
 
-                                ##### WordCloud
-                                This section displays the words with the highest occurrences in the collection.
-
-                                ##### Term Frequency
-                                This section shows the frequency at which a word is used across the collection over time.
-
-                                ##### Keywords TF-IDF
-                                This section displays the keywords of the documents in the collection.
-
-                                ##### Network: Member
-                                This section shows the connections between members through jointly authored and negotiated documents.
-
-                                ##### Network: Docs
-                                This section shows the links between documents through cross-references.
-
-
-                                ***contact: @wto.org***
+                                    ##### Network: Docs
+                                    This section shows the links between documents through cross-references.
                                 '''
                                 ),
                         ])
-        ])
+        ]), pathname
+
     elif pathname == "/page-2":
+        return html.Div([
+                        html.H3('Report', style={'font-weight': 'bold'}),
+                        html.Embed(src = "assets/html/INTSUBAG750ERSD3.htm", width=850, height=850),
+                        # html.Embed(src = "assets/cross_reference.html", width=850, height=850)
+                        ]), pathname
+
+    elif pathname == "/page-3":
+        return html.Div([
+                html.H3('Inventory', style={'font-weight': 'bold'}),
+                html.Br(),
+                # html.P('Preprocessed: stopwords removed; words in original form; without numbers; predefined phrase linked by "_"'),
+                dash_table.DataTable(
+                    id='table',
+                    columns=[{"name": i, "id": i} for i in master.columns],
+                    data=master.to_dict('records'),
+
+                    editable=False,
+                    filter_action="native",
+                    sort_action="native",
+                    sort_mode="multi",
+                    column_selectable=False,
+                    row_selectable=False,
+                    row_deletable=False,
+                    selected_columns=[],
+                    selected_rows=[],
+                    page_action="native",
+                    page_current= 0,
+                    page_size= 100,
+
+                    # Freeze the first row
+                    fixed_rows={'headers': True},
+
+                    # style_cell_conditional=[
+                    #     {'if': {'column_id': 'Title'},
+                    #      'width': '180px'},
+                    # ],
+                    style_data={
+                        'whiteSpace': 'normal',
+                        'height': 'auto'
+                    },
+                    style_cell={
+                        # 'height': 'auto',
+                        'width': 'auto',
+                        'minWidth': '50px', 
+                        'maxWidth': '300px',
+                        # 'whiteSpace': 'normal',
+                        'textAlign': 'left',
+                        'verticalAlign': 'top',
+                        'fontSize':12,
+                    },
+                )
+            ]), pathname
+    elif pathname == "/page-4":
         if 'data' in globals():
             del data
         data = load_data()
-        data = data.rename(columns={'text':'Normalized Text'})
+        # data = data.rename(columns={'text':'Normalized Text'})
         return html.Div([
-                html.H3('Text Data', style={'font-weight': 'bold'}),
-                html.P('Preprocessed: stopwords removed; words in original form; without numbers; predefined phrase linked by "_"'),
+                html.H3('Document texts', style={'font-weight': 'bold'}),
+                html.Br(),
+                # html.P('Preprocessed: stopwords removed; words in original form; without numbers; predefined phrase linked by "_"'),
                 dash_table.DataTable(
                     id='table',
                     # columns=[{"name": i, "id": i} for i in textdata.columns],
                     # data=textdata.to_dict('records'),
-                    columns=[{"name": i, "id": i} for i in data[['FileID','Text','Normalized Text']].columns],
-                    data=data[['FileID','Text','Normalized Text']].to_dict('records'),
+                    # columns=[{"name": i, "id": i} for i in data[['FileID','Text','Normalized Text']].columns],
+                    # data=data[['FileID','Text','Normalized Text']].to_dict('records'),
+                    columns=[{"name": i, "id": i} for i in data[['Symbol','Title','Text']].columns],
+                    data=data[['Symbol','Title','Text']].to_dict('records'),
 
                     # columns=[{"name": i, "id": i} for i in data[['FileID','Text','text']].columns],
                     # data=data[['FileID','Text','text']].to_dict('records'),
@@ -408,8 +460,12 @@ def render_page_content(pathname):
                     page_action="native",
                     page_current= 0,
                     page_size= 20,
+
+                    # # Freeze the first row
+                    # fixed_rows={'headers': True},
+
                     style_cell_conditional=[
-                        {'if': {'column_id': 'FileID'},
+                        {'if': {'column_id': 'Symbol'},
                          'width': '80px'},
                     ],
 
@@ -419,16 +475,17 @@ def render_page_content(pathname):
                     },
                     style_cell={
                         # 'height': 'auto',
-                        'minWidth': '20px', 'maxWidth': '300px',
+                        # 'minWidth': '20px', 
+                        # 'maxWidth': '300px',
                         # 'whiteSpace': 'normal',
                         'textAlign': 'left',
                         'verticalAlign': 'top',
                         'fontSize':12,
                     },
                 )
-            ])
+            ]), pathname
 
-    elif pathname in ["/page-3"]:
+    elif pathname in ["/page-5"]:
         return html.Div([
                         # Chart 1
                         dbc.Row([
@@ -508,293 +565,107 @@ def render_page_content(pathname):
                             ], lg=10),
                         ]),
 
-
-                        # Chart 3
-                        dbc.Row([
-                            dbc.Col([
-                                html.H6('Number of documents by proponent', style={'font-weight': 'bold'}),
-                                html.Label('Select Year:'),
-                                dcc.Dropdown(
-                                    id='stat-3-dropdown-year',
-                                    options=[{'label': v, 'value': k}
-                                                for k, v in dict_year.items()],
-                                    multi=False,
-                                    value= 'All',
-                                ),
-                            ], lg=4),
-                            # dbc.Col([
-                            #     html.Label('Select Author:'),
-                            #     dcc.Dropdown(
-                            #         id='stat-year-dropdown-proponent2',
-                            #         options=[{'label': v, 'value': k}
-                            #                     for k, v in dict_proponent.items()],
-                            #         multi=False,
-                            #         value= 'All Members & Groups',
-                            #     ),
-                            # ], lg=4)
-                        ]),
-                        dbc.Row([
-                            dbc.Col([
-                                dcc.Graph(
-                                    id='stat-3-proponent'
-                                ),
-                            ], lg=10),
-                        ]),
-
-
-                        # Chart 4
-                        dbc.Row([
-                            dbc.Col([
-                                html.Br(),
-                                html.Br(),
-                                html.H6('Number of documents by topic', style={'font-weight': 'bold'}),
-                                html.Label('Select Year:'),
-                                dcc.Dropdown(
-                                    id='stat-4-dropdown-year',
-                                    options=[{'label': v, 'value': k}
-                                                for k, v in dict_year.items()],
-                                    multi=False,
-                                    value= 'All',
-                                ),
-                            ], lg=4),
-                            # dbc.Col([
-                            #     html.Label('Select Author:'),
-                            #     dcc.Dropdown(
-                            #         id='stat-year-dropdown-proponent2',
-                            #         options=[{'label': v, 'value': k}
-                            #                     for k, v in dict_proponent.items()],
-                            #         multi=False,
-                            #         value= 'All Members & Groups',
-                            #     ),
-                            # ], lg=4)
-                        ]),
-                        dbc.Row([
-                            dbc.Col([
-                                dcc.Graph(
-                                    id='stat-4-topic'
-                                ),
-                            ], lg=10),
-                        ]),
+                        # # Chart 3
+                        # dbc.Row([
+                        #     dbc.Col([
+                        #         html.H6('Number of documents by proponent', style={'font-weight': 'bold'}),
+                        #         html.Label('Select Year:'),
+                        #         dcc.Dropdown(
+                        #             id='stat-3-dropdown-year',
+                        #             options=[{'label': v, 'value': k}
+                        #                         for k, v in dict_year.items()],
+                        #             multi=False,
+                        #             value= 'All',
+                        #         ),
+                        #     ], lg=4),
+                        #     # dbc.Col([
+                        #     #     html.Label('Select Author:'),
+                        #     #     dcc.Dropdown(
+                        #     #         id='stat-year-dropdown-proponent2',
+                        #     #         options=[{'label': v, 'value': k}
+                        #     #                     for k, v in dict_proponent.items()],
+                        #     #         multi=False,
+                        #     #         value= 'All Members & Groups',
+                        #     #     ),
+                        #     # ], lg=4)
+                        # ]),
+                        # dbc.Row([
+                        #     dbc.Col([
+                        #         dcc.Graph(
+                        #             id='stat-3-proponent'
+                        #         ),
+                        #     ], lg=10),
+                        # ]),
 
 
+                        # # Chart 4
+                        # dbc.Row([
+                        #     dbc.Col([
+                        #         html.Br(),
+                        #         html.Br(),
+                        #         html.H6('Number of documents by topic', style={'font-weight': 'bold'}),
+                        #         html.Label('Select Year:'),
+                        #         dcc.Dropdown(
+                        #             id='stat-4-dropdown-year',
+                        #             options=[{'label': v, 'value': k}
+                        #                         for k, v in dict_year.items()],
+                        #             multi=False,
+                        #             value= 'All',
+                        #         ),
+                        #     ], lg=4),
+                        # ]),
+                        # dbc.Row([
+                        #     dbc.Col([
+                        #         dcc.Graph(
+                        #             id='stat-4-topic'
+                        #         ),
+                        #     ], lg=10),
+                        # ]),
+                    ]), pathname
 
 
-
-                    ])
-
-    elif pathname in ["/page-4"]:
-        # if 'data' in globals():
-        #     del data
-        # data = load_data()
-        return html.Div([
-                        dbc.Row([
-                            # dbc.Col(lg=1),
-                            dbc.Col([
-                                html.H3('Similarity within topics', style={'font-weight': 'bold'}),
-                                # html.H5('Updata on 14 June 2020'),
-                                html.P(
-                                    id="description",
-                                    children=dcc.Markdown(
-                                      children=(
-                                        '''
-                                        Similarity between two docs in a topic.
-                                        ''')
-                                    )
-                                ),
-                                html.Br(),
-                                # html.H6('Number of Proposals by year', style={'font-weight': 'bold'}),
-                                # dcc.Dropdown(
-                                #     id='my-dropdown',
-                                #     options=[{'label': v, 'value': k}
-                                #                 for k, v in dict_pillar.items()],
-                                #     multi=False,
-                                #     value= [0,1,2,3,4,5,6,7,8,9],
-                                # ),
-                            ], lg=10),
-                        ]),
-                        dbc.Row([
-                            dbc.Col([
-                                html.Label('Select Topic:'),
-                                dcc.Dropdown(
-                                    id='plot-year-dropdown-pillar1',
-                                    options=[{'label': v, 'value': k}
-                                                for k, v in dict_topic.items()],
-                                    multi=False,
-                                    value= 'COT',
-                                ),
-                            ], lg=4),
-                            # dbc.Col([
-                            #     html.Label('Select Author:'),
-                            #     dcc.Dropdown(
-                            #         id='plot-year-dropdown-proponent1',
-                            #         options=[{'label': v, 'value': k}
-                            #                     for k, v in dict_proponent.items()],
-                            #         multi=False,
-                            #         value= 'All',
-                            #     ),
-                            # ], lg=4)
-                        ]),
-                        dbc.Row([
-                            # dbc.Col(lg=1),
-                            # dbc.Col([
-                            #     dcc.Graph(
-                            #         id='top_topics'
-                            #     ),
-                            # ], lg=3),
-                            dbc.Col([
-                                dcc.Graph(
-                                    id='plot_year1'
-                                ),
-                            ], lg=10),
-                        ]),
-                    ])
+    # elif pathname in ["/page-6"]:
+    #     return html.Div([
+    #                         html.H4("Stats 2", className="display-about"),
+    #                 ]), pathname
 
 
-    elif pathname in ["/page-5"]:
-        # return html.H5("Content to be added page 2.")
-        return html.Div([
-                        dbc.Row([
-                            # dbc.Col(lg=1),
-                            dbc.Col([
-                                html.H3('WordCloud by topic', style={'font-weight': 'bold'}),
-                                # html.H5('Updata on 14 June 2020'),
-                                html.P(
-                                    id="description",
-                                    children=dcc.Markdown(
-                                      children=(
-                                        '''
-                                        Word frequency in a topic.
-                                        ''')
-                                    )
-                                ),
-                                html.Br(),
-                            ], lg=10),
-                        ]),
-                        dbc.Row([
-                            dbc.Col([
-                                html.Label('Select Topic:'),
-                                dcc.Dropdown(
-                                    id='plot-year-dropdown-pillar2',
-                                    options=[{'label': v, 'value': k}
-                                                for k, v in dict_topic.items()],
-                                    multi=False,
-                                    value= 'COT',
-                                ),
-                            ], lg=4),
-                        ]),
-                        dbc.Row([
-                            dbc.Col([
-                                dcc.Graph(
-                                    id='plot_year2'
-                                ),
-                            ], lg=10),
-                        ]),
-                    ])
-
+    # elif pathname in ["/page-7"]:
+    #     return html.Div([
+    #                         html.H4("Stats 3", className="display-about"),
+    #                 ]), pathname
 
     elif pathname in ["/page-6"]:
         return html.Div([
-                        # html.H1('Title'),
-                        html.H3('Networks: proposal proponents', style={'font-weight': 'bold'}),
-                        # html.Embed(src = "assets/network_proponent.html", width=850, height=850),
-                        html.Embed(src = "assets/Proponents Network - year(1997-2001) minEdge(1) KeepGroup(No).html", width=1000, height=700),
-                        html.Embed(src = "assets/Proponents Network - year(1997-2001) minEdge(1) KeepGroup(Yes).html", width=1000, height=700),
-                        html.Embed(src = "assets/Proponents Network - year(2002-2008) minEdge(1) KeepGroup(No).html", width=1000, height=700),
-                        html.Embed(src = "assets/Proponents Network - year(2002-2008) minEdge(1) KeepGroup(Yes).html", width=1000, height=700),
-                        html.Embed(src = "assets/Proponents Network - year(2009-2015) minEdge(1) KeepGroup(No).html", width=1000, height=700),
-                        html.Embed(src = "assets/Proponents Network - year(2009-2015) minEdge(1) KeepGroup(Yes).html", width=1000, height=700),
-                        html.Embed(src = "assets/Proponents Network - year(2016-2021) minEdge(1) KeepGroup(No).html", width=1000, height=700),
-                        html.Embed(src = "assets/Proponents Network - year(2016-2021) minEdge(1) KeepGroup(Yes).html", width=1000, height=700),
-                        ])
-    elif pathname in ["/page-9"]:
-        return html.Div([
-                        # html.H1('Title'),
-                        html.H3('Networks: document cross reference', style={'font-weight': 'bold'}),
-                        # html.Embed(src = "assets/network_proponent.html", width=850, height=850),
-                        html.Embed(src = "assets/cross_reference.html", width=850, height=850)
-                        ])
-
+                        html.H3('Network: Author of documents', style={'font-weight': 'bold'}),
+                        html.Embed(src = "assets/html/Years 1997-2001 Keep Member groups True.html", width=1000, height=700),
+                        html.Embed(src = "assets/html/Years 2002-2008 Keep Member groups True.html", width=1000, height=700),
+                        html.Embed(src = "assets/html/Years 2009-2015 Keep Member groups True.html", width=1000, height=700),
+                        html.Embed(src = "assets/html/Years 2016-2023 Keep Member groups True.html", width=1000, height=700),
+                        ]), pathname
 
     elif pathname in ["/page-7"]:
         return html.Div([
-                        dbc.Row([
-                            dbc.Col([
-                                    html.H3('Term Frequency', style={'font-weight': 'bold'}),
-                                    html.P(
-                                        id="description",
-                                        children=dcc.Markdown(
-                                          children=(
-                                            '''
-                                            Term frequency across time
-                                            ''')
-                                        )
-                                    ),
+                        html.H3('Network: document cross reference', style={'font-weight': 'bold'}),
+                        html.Embed(src = "assets/html/networkx_graph.html", width=850, height=850),
+                        # html.Embed(src = "assets/cross_reference.html", width=850, height=850)
+                        ]), pathname
 
-                            ]),
-
-                            ]),
-                        dbc.Row([
-                                dbc.Col([
-                                        dbc.Input(id='term-freq-input', value='tariff ams', type='text'),
-                                        dbc.Button(id='term-freq-button', type='submit', children='Submit', className="mr-2"),
-                                        html.P(id='term-freq-invalid'),
-                                        ], lg=6),
-                                ]),
-                        dbc.Row([
-                                dbc.Col([
-                                        dcc.Graph(
-                                            id='term-freq-plot'
-                                            ),
-                                        # dbc.Button(id='term-freq-button', type='submit', children='Submit', className="mr-2"),
-                                        ], lg=10),
-                                ])
-                        ])
-    elif pathname in ["/page-8"]:
-        return html.Div([
-                        dbc.Row([
-                            dbc.Col([
-                                    html.H3('TF-IDF keywords', style={'font-weight': 'bold'}),
-                                    html.P(
-                                        id="description2",
-                                        children=dcc.Markdown(
-                                          children=(
-                                            '''
-                                            Keywords based on TF-IDF. Select documents
-                                            ''')
-                                        )
-                                    ),
-                            ]),
-
-                            ]),
-                        dbc.Row([
-                                dbc.Col([
-                                        html.P(id='tfidf-invalid'),
-                                        dcc.Dropdown(id='tfidf-dropdown',
-                                                     multi=True,
-                                                     value=['AIE-1', 'AIE-2','AIE-3','AIE-4','AIE-5'],
-                                                     placeholder='Select members',
-                                                     options=[{'label': country, 'value': country}
-                                                              for country in allfileid]),
-                                        ],lg=10),
-                                ]),
-                        dbc.Row([
-                                dbc.Col([
-                                        dcc.Graph(
-                                            id='tfidf-plot'
-                                            ),
-                                        ], lg=10),
-                                ])
-                        ])
+    else:
+        # If the user tries to reach a different page, return a 404 message
+        return dbc.Container(
+            [
+                html.H1("404: Not found", className="text-danger"),
+                html.Hr(),
+                html.P(f"The pathname {pathname} was not recognised..."),
+            ]
+        ), pathname
 
 
-    # If the user tries to reach a different page, return a 404 message
-    return dbc.Container(
-        [
-            html.H1("404: Not found", className="text-danger"),
-            html.Hr(),
-            html.P(f"The pathname {pathname} was not recognised..."),
-        ]
-    )
+#################################################
+#####    Page Search
+#################################################
+
 
 # Callbacks for interactive pages
 # Stats 1 - Pillar
@@ -1024,175 +895,444 @@ def update_graph4(select_year):
 
 
 
-# Similarity
-@app.callback(Output('plot_year1', 'figure'),
-             [Input('plot-year-dropdown-pillar1', 'value'),
-             ])
-def update_graph_sim(select_pillar1):
-    # if not select_pillar1:
-    #     raise PreventUpdate
-    # topic = 'TRQ'
-
-    topic = select_pillar1
-
-    if 'data' in globals():
-        del data
-    data = load_data()
 
 
-    selected = data[data['Topics'].str.contains(topic)].sort_values('Year')
-    selected_symbols = selected['Symbol'].tolist()
-    selected_docs = selected['Words'].tolist()
-    sim_sorted = calc_similarity(selected_symbols, selected_docs, kRandom=3, nClusters=3, sortCluster=False)
 
-    figure = px.imshow(sim_sorted)
-    figure.update_layout(
-        height=800,
-        width=800,
-        font=dict(
-            family="Courier New, monospace",
-            size=8,
-            color="RebeccaPurple"
-                ),
-        xaxis=dict(autorange='reversed')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# call back for returning results
+@app.callback(
+        [Output("search-results", "children"),  
+        #  Output("top-space", "style"),
+         Output("sample-queries", "style")
+         ],
+        [Input("search-button", "n_clicks"),
+         Input('search-box', 'n_submit'), ], 
+        [State("search-box", "value"),
+        State('radio-select-top', 'value')]
         )
-    return figure
-
-# WordCloud
-@app.callback(Output('plot_year2', 'figure'),
-             [Input('plot-year-dropdown-pillar2', 'value'),
-             ])
-def update_graph_cloud(select_pillar2):
-    # if not select_pillar2:
-    #     raise PreventUpdate
-
-    if 'data' in globals():
-        del data
-    data = load_data()
-
-    topic = select_pillar2
-    text = " ".join(review for review in data[data["Topics"].str.contains(topic)]['text'])
-    # Generate a word cloud image
-    wordcloud = WordCloud(background_color="white", width=900, height=600).generate(text)
-
-    # Display the generated image:
-    figure=px.imshow(wordcloud)
-    figure.update_layout(
-                    width=800,
-                    height=650,
-                    xaxis_visible=False,
-                    yaxis_visible=False,
-                    font=dict(
-                              family="Courier New, monospace",
-                              size=8,
-                              color="RebeccaPurple"
-                             ),
-                    )
-    return figure
-
-
-
-# Term frequency
-@app.callback(
-        [dash.dependencies.Output('term-freq-plot', 'figure'),
-         dash.dependencies.Output('term-freq-invalid', 'children')
-         ],
-        [dash.dependencies.Input('term-freq-button', 'n_clicks')],
-        [dash.dependencies.State('term-freq-input', 'value')]
-    )
-
-def update_output(clicks, terms):
-    terms = terms.strip().split(' ')
-    invalid = set(terms) - set(all_terms)
-    terms = list(set(terms) - invalid)
-
-    # terms = ['competition','ams','food']
-    freq = df_cv.loc[:,terms].div(df_cv["SUM"], axis=0)
-    freq = freq.join(df_cv['Date'])
-    freq= freq.groupby('Date')[terms].mean()
-
-    fig = px.line(freq.ewm(span = 50).mean())
-    
-    
-    # fig = go.Figure()
-
-    # fig.add_trace(go.Scatter(x=x, y=y + 5, name="spline",
-    #                 text=["tweak line smoothness<br>with 'smoothing' in line object"],
-    #                 hoverinfo='text+name',
-    #                 line_shape='spline'))
-    
-
-    if len(invalid) >0:
-        invalid = 'Invalid term(s): ' + ' '.join(list(invalid))
+def search(n_clicks, n_submit, search_terms, top):
+    # Check if the search button was clicked
+    if (n_clicks <=0 and n_submit is None) or search_terms=='' or search_terms is None:
+        return "",  None
     else:
-        invalid = ' '
-    return fig, invalid
+        df = search_docs(search_terms, top = top)
+        
+        csv_string = df.to_csv(index=False, encoding='utf-8')
+        csv_string = "data:text/csv;charset=utf-8," + urllib.parse.quote(csv_string)
+
+        df['meta'] = df['member'] + '\n' + df['symbol'] + '\n' + df['date'] + '\n Score: ' + df['score'].astype(str) 
+        df['text'] = df['text'] + '\n\n [Topic]: ' + df['topic']
+
+        matches = df[['meta', 'text']]
+        matches.columns = ['Meta','Text (Paragraph)']
+
+        # Display the results in a datatable
+        return html.Div(style={'width': '100%'},
+                        children=[
+                            # html.P('Find ' + str(len(matches)) +" paragraphs, with score ranging from " + str(df['score'].min()) + ' to ' + str(df['score'].max())),
+                            # html.A('Download CSV', id='download-link', download="rawdata.csv", href=csv_string, target="_blank",),
+                            html.Br(),
+                            dbc.Row(
+                                [
+                                    dbc.Col(html.P('Find ' + str(len(matches)) +" paragraphs, with scores from " + str(df['score'].min()) + ' to ' + str(df['score'].max())), width={"size": 9, "offset": 0}),
+                                    dbc.Col(html.A('Download CSV', id='download-link', download="rawdata.csv", href=csv_string, target="_blank"), width={"size": 3, "offset": 0}),
+                                ],
+                                justify="between",
+                                style={"margin-bottom": "20px"},
+                            ),
+
+                            html.Br(),
+                            dash_table.DataTable(
+                                    id="search-results-table",
+                                    columns=[{"name": col, "id": col} for col in matches.columns],
+                                    data=matches.to_dict("records"),
+
+                                    editable=False,
+                                    # filter_action="native",
+
+                                    sort_action="native",
+                                    sort_mode="multi",
+                                    
+                                    column_selectable=False,
+                                    row_selectable=False,
+                                    row_deletable=False,
+                                    
+                                    selected_columns=[],
+                                    selected_rows=[],
+                                    
+                                    page_action="native",
+                                    page_current= 0,
+                                    page_size= 20,
+                                    style_table={'width': '900px'},
+                                    style_header={'fontWeight': 'bold'},
+                                    style_cell={
+                                        # 'height': 'auto',
+                                        # 'minWidth': '50px', 
+                                        # 'maxWidth': '800px',
+                                        # # 'width': '100px',
+                                        # 'whiteSpace': 'normal',
+                                        'textAlign': 'left',
+                                        'fontSize': '14px',
+                                        'verticalAlign': 'top',
+                                        'whiteSpace': 'pre-line'
+                                    },
+                                    style_cell_conditional=[
+                                        # {'if': {'column_id': 'Symbol'},
+                                        #  'width': '50px'},
+                                        # {'if': {'column_id': 'Member'},
+                                        #  'width': '90px'},
+                                        # {'if': {'column_id': 'Date'},
+                                        #  'width': '80px'},
+                                        # {'if': {'column_id': 'Section/Topic'},
+                                        #  'width': '200px'},
+                                        {'if': {'column_id': 'Text (Paragraph)'},
+                                        'width': '1000px'},
+                                        # {'if': {'column_id': 'Score'},
+                                        #  'width': '80px', 'textAlign': 'right'},
+                                    ],
+                                    style_data_conditional=[
+                                        {
+                                            'if': {'row_index': 'odd'},
+                                            'backgroundColor': 'rgb(250, 250, 250)',
+                                        }
+                                    ],
+                                    style_as_list_view=True,
+                                )
+                            ]
+                ),  {'display': 'none'}
+
+#################################################
+#####     Page Chat
+#################################################
+
+# call back for returning results
+@app.callback(
+        [Output("search-results2", "children"),  
+         Output("sample-queries2", "style")
+        ],
+        [Input("search-button2", "n_clicks"),
+         Input("search-box2", "n_submit")
+        ], 
+        [State("search-box2", "value"),
+         State('radio-select-top2', 'value')
+        ]
+        )
+def chat(n_clicks, n_submit, query, model):
+    # Check if the search button was clicked
+    # if (n_clicks <=0 and n_submit is None) or search_terms=='' or search_terms is None:
+    if (n_clicks <=0 and n_submit is None) or query=='' or query is None:
+        return "",  None
+    else:
+        # ChatGPT only
+        prompt = f"""
+                    Answer the following question.
+                    If you don't know the answer, just say that you don't know. 
+                    ---
+                    QUESTION: {query}   
+                """
+        chatgpt = get_completion(prompt, model)        
+
+        # chatgpt = complete(search_terms, model)
+        # # print(chatgpt)
+
+        # ChatGPT plus TPR
+        prompt = retrieve(query)
+        chatgpttpr = get_completion(prompt, model)
+        # query_with_contexts = retrieve(search_terms)
+        # chatgpttpr = complete(query_with_contexts, model)
+    return html.Div(
+    dbc.Container(
+        [
+            dbc.Row(
+                [
+                    dbc.Col(html.H5("Answer by ChatGPT"), width={"size": 6, "offset": 0}),
+                    dbc.Col(html.H5("Answer by ChatGPT based on TPR reports"), width={"size": 6, "offset": 0}),
+                ],
+                justify="between",
+                style={"margin-bottom": "20px"},
+            ),
+            dbc.Row(
+                [
+                    dbc.Col(html.P(dcc.Markdown(chatgpt)), width={"size": 6, "offset": 0}),
+                    dbc.Col(html.P(dcc.Markdown(chatgpttpr)), width={"size": 6, "offset": 0}),
+                ],
+                justify="between",
+            ),
+        ],
+    )
+),  {'display': 'none'}
+ 
 
 
-# itf-idf
-# @app.callback(
-#         [dash.dependencies.Output('tfidf-plot', 'figure'),
-#          dash.dependencies.Output('tfidf-invalid', 'children')
-#          ],
-#         [dash.dependencies.Input('tfidf-button', 'n_clicks')],
-#         [dash.dependencies.State('tfidf-dropdown', 'value')]
-#     )
+#################################################
+#####     Page tags
+#################################################
 
 @app.callback(
-        [Output('tfidf-plot', 'figure'),
-         Output('tfidf-invalid', 'children')
-         ],
-        # [Input('tfidf-button', 'n_clicks')],
-        [Input('tfidf-dropdown', 'value')]
-    )
+    # Output('table', 'data'),
+    Output("search-results3", "children"),
+    [Input({'type': 'tag', 'index': dash.dependencies.ALL}, 'n_clicks')],
+    [State({'type': 'tag', 'index': dash.dependencies.ALL}, 'children')]
+)
+def update_table(*args):
+    ctx = dash.callback_context
 
-# def update_output(clicks, terms):
-def update_output(terms):
-    # print(terms)
+    if not ctx.triggered:
+        return None # df.to_dict('records')
 
-    # terms = terms.strip().split(' ')
-    # invalid = set(terms) - set(all_terms)
-    # terms = list(set(terms) - invalid)
+    button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    tag_clicked = ctx.states[button_id + '.children']
+    # print(tag_clicked)
 
-    # terms = ['competition','ams','food']
+    df = search_docs(tags[tag_clicked], top = 200)
+    
+    csv_string = df.to_csv(index=False, encoding='utf-8')
+    csv_string = "data:text/csv;charset=utf-8," + urllib.parse.quote(csv_string)
 
-    # files = ['AIE-1', 'AIE-2','AIE-3','AIE-4','AIE-5','AIE-6','AIE-7','AIE-8','AIE-9',]
-    # file = 'AIE-1'
-    tfidf = load_tfidf()
-    vis_tfidf = tfidf.set_index('word').groupby(['FileID']).tfidf.nlargest(10).reset_index()
+    df['meta'] = df['member'] + '\n' + df['symbol'] + '\n' + df['date'] + '\n Score: ' + df['score'].astype(str) 
+    df['text'] = df['text'] + '\n\n [Topic]: ' + df['topic']
 
-    files = terms
-    # print(files)
-    rows = 2
-    rows = len(terms)//5 + 1
-    cols = 5
+    matches = df[['meta', 'text']]
+    matches.columns = ['Meta','Text (Paragraph)']
 
-    fig = make_subplots(rows=rows, cols=cols, subplot_titles=files)
-    done = False
-    for r in range(rows):
-        for c in range(cols):
-            # print(c+cols*r)
-            if c+cols*r+1 > len(files):
-                done = True
-                break
-            trace = vis_tfidf[vis_tfidf['FileID']==files[c+cols*r]][['word','tfidf']].set_index('word').sort_values('tfidf',ascending=True)
-            fig.add_trace(go.Bar(y=trace.index, x=trace.tfidf, orientation='h',
-                                 marker=dict(color='#7FC97F'
-                                 # 'rgba(58, 71, 80, 0.6)'
-                                 )
-                                 ),
-                          row=r+1, col=c+1,
-                         )
-        if done:
-            break
+    # Display the results in a datatable
+    return html.Div(style={'width': '100%'},
+                     children=[
+                        html.Br(),
+                        dbc.Row(
+                            [
+                                dbc.Col(html.P('Find ' + str(len(matches)) +" paragraphs, with scores from " + str(df['score'].min()) + ' to ' + str(df['score'].max())), width={"size": 9, "offset": 0}),
+                                dbc.Col(html.A('Download CSV', id='download-link', download="rawdata.csv", href=csv_string, target="_blank"), width={"size": 3, "offset": 0}),
+                            ],
+                            justify="between",
+                            style={"margin-bottom": "20px"},
+                        ),
+                        html.Br(),
+                        dash_table.DataTable(
+                                id="search-results-table",
+                                columns=[{"name": col, "id": col} for col in matches.columns],
+                                data=matches.to_dict("records"),
 
-    fig.update_layout(height=rows*300, width=1200, title_text="Side By Side Subplots", showlegend=False,
-                      font=dict(family="Courier New, monospace",size=9,
-                                # color="RebeccaPur
-                               )
-                     )
-    invalid = ' '
-    return fig, invalid
+                                editable=False,
+                                # filter_action="native",
+
+                                sort_action="native",
+                                sort_mode="multi",
+                                
+                                column_selectable=False,
+                                row_selectable=False,
+                                row_deletable=False,
+                                
+                                selected_columns=[],
+                                selected_rows=[],
+                                
+                                page_action="native",
+                                page_current= 0,
+                                page_size= 20,
+
+                                style_table={'width': '100%'},
+                                style_header={'fontWeight': 'bold'},
+                                style_cell={
+                                    # 'height': 'auto',
+                                    # 'minWidth': '50px', 
+                                    # 'maxWidth': '800px',
+                                    # # 'width': '100px',
+                                    # 'whiteSpace': 'normal',
+                                    'textAlign': 'left',
+                                    'fontSize': '14px',
+                                    'verticalAlign': 'top',
+                                    'whiteSpace': 'pre-line'
+                                    # 'whiteSpace': 'nowrap',
+                                    
+                                },
+                                # style_cell_conditional=[
+                                #     # {'if': {'column_id': 'Symbol'},
+                                #     #  'width': '50px'},
+                                #     # {'if': {'column_id': 'Member'},
+                                #     #  'width': '90px'},
+                                #     # {'if': {'column_id': 'Date'},
+                                #     #  'width': '80px'},
+                                #     # {'if': {'column_id': 'Section/Topic'},
+                                #     #  'width': '200px'},
+                                #     {'if': {'column_id': 'Text (Paragraph)'},
+                                #     'width': '1000px'},
+                                #     # {'if': {'column_id': 'Score'},
+                                #     #  'width': '80px', 'textAlign': 'right'},
+                                # ],
+                                style_data_conditional=[
+                                    {
+                                        'if': {'row_index': 'odd'},
+                                        'backgroundColor': 'rgb(250, 250, 250)',
+                                    }
+                                ],
+                                style_as_list_view=True,
+                            )
+                        ]
+            )
+
+
+#################################################
+# end of function page
+#################################################
 
 
 
@@ -1206,7 +1346,8 @@ def update_output(terms):
 
 
 
-# General modules
+
+#################################################
 @app.callback(
     Output("collapse", "is_open"),
     [Input("toggle", "n_clicks")],
@@ -1218,4 +1359,4 @@ def toggle_collapse(n, is_open):
     return is_open
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(port=8888, debug=True)

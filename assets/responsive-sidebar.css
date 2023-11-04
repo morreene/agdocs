@@ -20,7 +20,7 @@
     color: #b8c7ce;
 } */
 
-a {
+#sidebar a {
     color: #3F4F75;
 }
 .nav-pills .nav-link.active, .nav-pills .show>.nav-link {
@@ -86,7 +86,7 @@ margin-right: 10px; */
     left: 0;
     bottom: 0;
     width: 16rem;
-    width: 12rem;
+    width: 14rem;
     text-align: left;
   }
 
@@ -131,6 +131,7 @@ bottom: 0;
   #page-content {
     margin-left: 16rem;
     margin-right: 2rem;
+    width: 50%
   }
 }
 
@@ -147,10 +148,6 @@ bottom: 0;
 
 }
 
-#search-button {
-    background-color: rgb(98, 186, 181);
-    border-color: rgb(98, 186, 181);
-}
 
 
 .alert-info {
@@ -175,3 +172,39 @@ blockquote {
     background-color: white;
     border-right: solid #20293d 4px;
 } */
+
+/* markdown table */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+th, td {
+  padding: 8px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+th {
+  background-color: #f2f2f2;
+}
+
+tr:hover {
+  background-color: #f5f5f5;
+}
+
+/* image in the markdown */
+img[src*="../assets/image01.png"] {
+  width:100%;
+  height:auto;
+}
+
+
+
+
+
+
+
+
