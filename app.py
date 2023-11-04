@@ -87,6 +87,7 @@ dict_year.sort()
 dict_year = ['All'] + dict_year
 dict_year = dict(zip(dict_year, dict_year))
 
+data = pd.read_pickle(DASH_DATA, compression='zip')
 
 
 # Text data
@@ -402,7 +403,7 @@ def render_page_content(pathname, logout_pathname):
                     selected_rows=[],
                     page_action="native",
                     page_current= 0,
-                    page_size= 100,
+                    page_size= 50,
 
                     # Freeze the first row
                     fixed_rows={'headers': True},
@@ -428,9 +429,9 @@ def render_page_content(pathname, logout_pathname):
                 )
             ]), pathname
     elif pathname == "/page-4":
-        if 'data' in globals():
-            del data
-        data = load_data()
+        # if 'data' in globals():
+        #     del data
+        # data = load_data()
         # data = data.rename(columns={'text':'Normalized Text'})
         return html.Div([
                 html.H3('Document texts', style={'font-weight': 'bold'}),
